@@ -9,7 +9,7 @@
 // to the Firestore thread.
 
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb, adminCollections } from "../../../lib/firebase-admin";
+import { adminDb, adminCollections } from "../../../../lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(request: NextRequest) {
