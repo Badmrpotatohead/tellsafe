@@ -40,8 +40,12 @@ export default function FeedbackForm({ org }: Props) {
       setError("Please enter your name.");
       return;
     }
-    if ((privacy === "identified" || privacy === "relay") && !email.trim()) {
+   if ((privacy === "identified" || privacy === "relay") && !email.trim()) {
       setError("Please enter your email.");
+      return;
+    }
+    if ((privacy === "identified" || privacy === "relay") && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Please enter a valid email address.");
       return;
     }
 
