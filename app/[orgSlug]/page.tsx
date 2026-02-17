@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { adminDb } from "../../lib/firebase-admin";
 import { BrandProvider } from "../../components/BrandProvider";
 import FeedbackForm from "../../components/FeedbackForm";
 import type { Organization } from "../../types";
@@ -10,6 +9,7 @@ interface Props {
 }
 
 async function getOrgBySlug(slug: string): Promise<Organization | null> {
+  const { adminDb } = await import("../../lib/firebase-admin");
   const slugDoc = await adminDb.collection("slugs").doc(slug).get();
   if (!slugDoc.exists) return null;
 
@@ -53,3 +53,5 @@ export default async function FeedbackPage({ params }: Props) {
     </>
   );
 }
+```
+
