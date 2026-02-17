@@ -40,7 +40,7 @@ export default function SignupPage() {
     setError(null);
     try {
       await signup(email, password, displayName);
-      setStep("org");
+      setStep("verify");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -268,6 +268,26 @@ export default function SignupPage() {
           </>
         )}
 
+{step === "verify" && (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
+            <h2 style={{ fontFamily: displayFont, fontSize: 20, fontWeight: 600, marginBottom: 8 }}>
+              Check your email
+            </h2>
+            <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+              We sent a verification link to <strong>{email}</strong>. Click it to verify your account, then continue below.
+            </p>
+            <button
+              onClick={() => setStep("org")}
+              style={{
+                width: "100%", padding: 14, border: "none", borderRadius: 12,
+                fontSize: 16, fontWeight: 700, color: "#fff", background: "#2d6a6a",
+                cursor: "pointer", fontFamily: fontStack,
+              }}>
+              I've Verified — Continue →
+            </button>
+          </div>
+        )}
         {step === "account" && (
           <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "#8a8578" }}>
             Already have an account?{" "}

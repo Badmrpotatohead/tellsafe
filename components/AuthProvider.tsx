@@ -84,9 +84,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName: string
   ) => {
     setError(null);
+
+    // Client-side password strength check
+    if (password.length < 8) {
+      const msg = "Password must be at least 8 characters.";
+      setError(msg);
+      throw new Error(msg);
+    }
+    if (!/[A-Z]/.test(password)) {
+      const msg = "Password must include an uppercase letter.";
+      setError(msg);
+      throw new Error(msg);
+    }
+    if (!/[a-z]/.test(password)) {
+      const msg = "Password must include a lowercase letter.";
+      setError(msg);
+      throw new Error(msg);
+    }
+    if (!/[0-9]/.test(password)) {
+      const msg = "Password must include a number.";
+      setError(msg);
+      throw new Error(msg);
+    }
+
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName });
+
+      // Send email verification
+      const { sendEmailVerification } = await import("firebase/auth");
+      await sendEmailVerification(cred.user);
     } catch (err: any) {
       const message =
         err.code === "auth/email-already-in-use"
