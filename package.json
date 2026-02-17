@@ -1,0 +1,34 @@
+{
+  "name": "tellsafe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "deploy:firestore": "firebase deploy --only firestore",
+    "deploy:functions": "cd functions && npm run build && cd .. && firebase deploy --only functions",
+    "deploy:all": "npm run deploy:firestore && npm run deploy:functions",
+    "generate:key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "firebase": "^10.12.0",
+    "firebase-admin": "^12.1.0",
+    "@sendgrid/mail": "^8.1.0",
+    "@anthropic-ai/sdk": "^0.24.0",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.12.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/qrcode": "^1.5.5",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.0"
+  }
+}

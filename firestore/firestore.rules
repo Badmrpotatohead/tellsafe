@@ -1,0 +1,143 @@
+// ============================================================
+// TellSafe — Firestore Security Rules
+// ============================================================
+// Save this as firestore.rules in your Firebase project root.
+//
+// Key principles:
+// 1. Public can submit feedback (write-only, no read)
+// 2. Admins can only access their own organization's data
+// 3. Encrypted emails are never readable by clients
+// 4. Organization slugs are unique (enforced by Cloud Function)
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // Helper functions
+    // ========================================
+
+    // Check if the requester is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Check if the requester is an admin of the given org
+    function isOrgAdmin(orgId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/organizations/$(orgId)/admins/$(request.auth.uid));
+    }
+
+    // Check if the requester is the owner of the given org
+    function isOrgOwner(orgId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/organizations/$(orgId)/admins/$(request.auth.uid)).data.role == "owner";
+    }
+
+    // ========================================
+    // Organizations
+    // ========================================
+    match /organizations/{orgId} {
+
+      // Anyone can read basic org info (needed for public feedback form)
+      // But we restrict which fields are exposed via the app layer
+      allow read: if true;
+
+      // Only org owner can update settings
+      allow update: if isOrgOwner(orgId);
+
+      // Creation handled by Cloud Function (ensures slug uniqueness)
+      allow create: if false;
+      allow delete: if false;
+
+      // ========================================
+      // Admins sub-collection
+      // ========================================
+      match /admins/{userId} {
+        // Admins can read the admin list for their org
+        allow read: if isOrgAdmin(orgId);
+
+        // Only owner can add/remove admins
+        allow write: if isOrgOwner(orgId);
+      }
+
+      // ========================================
+      // Feedback sub-collection
+      // ========================================
+      match /feedback/{feedbackId} {
+        // PUBLIC WRITE: Anyone can submit feedback (no auth required)
+        // The encryptedEmail field is set by the Cloud Function, not the client
+        allow create: if true
+          && request.resource.data.keys().hasAll(["type", "text", "categories", "status", "createdAt"])
+          && request.resource.data.type in ["identified", "anonymous", "relay"]
+          && request.resource.data.status == "new"
+          // Prevent clients from setting server-only fields
+          && !request.resource.data.keys().hasAny(["encryptedEmail", "sentimentScore", "sentimentLabel"]);
+
+        // Only org admins can read feedback
+        allow read: if isOrgAdmin(orgId);
+
+        // Only org admins can update status
+        allow update: if isOrgAdmin(orgId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["status", "updatedAt"]);
+
+        allow delete: if false;
+      }
+
+      // ========================================
+      // Relay Threads
+      // ========================================
+      match /threads/{threadId} {
+        // Only org admins can read threads
+        allow read: if isOrgAdmin(orgId);
+
+        // Thread creation handled by Cloud Function
+        allow create: if false;
+
+        // Admins can close threads
+        allow update: if isOrgAdmin(orgId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["status"]);
+
+        allow delete: if false;
+
+        // ========================================
+        // Thread Messages
+        // ========================================
+        match /messages/{messageId} {
+          // Admins can read all messages
+          allow read: if isOrgAdmin(orgId);
+
+          // Admins can send messages (from: "admin")
+          allow create: if isOrgAdmin(orgId)
+            && request.resource.data.from == "admin";
+
+          // Member messages are created by Cloud Function
+          // (from inbound email webhook)
+
+          allow update, delete: if false;
+        }
+      }
+
+      // ========================================
+      // Response Templates
+      // ========================================
+      match /templates/{templateId} {
+        allow read, write: if isOrgAdmin(orgId);
+      }
+    }
+
+    // ========================================
+    // Slug lookup (for public form routing)
+    // ========================================
+    match /slugs/{slug} {
+      // Public read: needed to resolve org slug to orgId
+      allow read: if true;
+
+      // Write only via Cloud Function
+      allow write: if false;
+    }
+  }
+}
