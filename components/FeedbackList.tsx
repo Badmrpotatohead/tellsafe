@@ -313,7 +313,7 @@ export default function FeedbackList({ orgId, onOpenThread }: Props) {
                   >
                     {f.status === "resolved" ? "↩ Reopen" : "✓ Resolve"}
                   </button>
-                  )}
+                
                 </div>
               </div>
             </div>
