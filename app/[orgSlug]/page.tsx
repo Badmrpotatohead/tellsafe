@@ -53,5 +53,4 @@ export default async function FeedbackPage({ params }: Props) {
     </>
   );
 }
-```
 
