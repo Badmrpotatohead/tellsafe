@@ -9,11 +9,11 @@
 // to the Firestore thread.
 
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb, adminCollections } from "../../../../lib/firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(request: NextRequest) {
   try {
+const { adminDb, adminCollections } = await import("../../../../lib/firebase-admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
     // SendGrid sends form-encoded data
     const formData = await request.formData();
 
