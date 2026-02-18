@@ -18,9 +18,10 @@ interface Props {
   onOpenThread: (threadId: string, feedbackId: string) => void;
   onSelect?: (feedback: Feedback) => void;
   categoryFilter?: string | null;
+  showArchived?: boolean;
 }
 
-export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFilter }: Props) {
+export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFilter, showArchived }: Props) {
   const { theme } = useBrand();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [filter, setFilter] = useState<string>("all");
@@ -34,6 +35,8 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
   }, [orgId]);
 
   const filtered = feedback.filter((f) => {
+    // Hide archived from normal views, show only in resolved/archive view
+    if (!showArchived && f.status === "archived") return false;
     if (categoryFilter && !f.categories.includes(categoryFilter)) return false;
     if (filter === "needs_reply" && f.status !== "needs_reply" && f.status !== "new") return false;
     if (filter === "urgent" && f.sentimentLabel !== "urgent") return false;
@@ -54,6 +57,7 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
     needs_reply: { color: theme.accent, label: "Needs reply" },
     replied: { color: theme.primary, label: "Replied" },
     resolved: { color: theme.muted, label: "Resolved" },
+    archived: { color: theme.muted, label: "Archived" },
   };
 
   const typeMap: Record<FeedbackType, { bg: string; border: string; icon: string }> = {
@@ -148,6 +152,7 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
                 boxShadow: "0 1px 3px rgba(0,0,0,0.03)", display: "flex", gap: 14,
                 cursor: "pointer", borderLeft: `4px solid ${tc.border}`,
                 transition: "all 0.2s", animation: `slideIn 0.35s ease ${i * 0.03}s both`,
+                opacity: f.status === "resolved" || f.status === "archived" ? 0.5 : 1,
               }}
             >
               <div style={{
@@ -189,7 +194,17 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
                   </span>
                   {isRelay && <span>#{(f as any).threadId}</span>}
                   {f.type === "anonymous" && <span>No reply possible</span>}
-                  {f.status !== "resolved" && (
+                  {f.status === "resolved" || f.status === "archived" ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "new"); }}
+                      style={{
+                        marginLeft: "auto", fontSize: 11, color: theme.accent,
+                        background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
+                      }}
+                    >
+                      ↩ Reopen
+                    </button>
+                  ) : f.status !== "resolved" && (
                     <button
                       onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "resolved"); }}
                       style={{

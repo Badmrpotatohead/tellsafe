@@ -87,7 +87,7 @@ export interface OrgAdmin {
 
 // --- Feedback ---
 export type FeedbackType = "identified" | "anonymous" | "relay";
-export type FeedbackStatus = "new" | "needs_reply" | "replied" | "resolved";
+export type FeedbackStatus = "new" | "needs_reply" | "replied" | "resolved" | "archived";
 
 export interface FeedbackBase {
   id: string;

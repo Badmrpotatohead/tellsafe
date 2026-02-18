@@ -48,17 +48,22 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
     });
   });
 
+  const activeCount = feedback.filter((f) => f.status !== "archived").length;
+  const resolvedCount = feedback.filter(
+    (f) => f.status === "resolved" || f.status === "archived"
+  ).length;
+
   type NavItem =
     | { sep: true }
     | { icon: string; label: string; view?: AdminView; badge?: number; active?: boolean; onClick?: () => void; category?: string };
 
   const navItems: NavItem[] = [
-    { icon: "📥", label: "Inbox", view: "inbox", badge: totalCount, active: activeView === "inbox" && !activeCategory },
+    { icon: "📥", label: "Inbox", view: "inbox", badge: activeCount, active: activeView === "inbox" && !activeCategory },
     { icon: "⚡", label: "Needs Reply", view: "needs_reply", badge: needsReplyCount, active: activeView === "needs_reply" },
     ...(urgentCount > 0
       ? [{ icon: "🚨", label: "Urgent", view: "inbox" as AdminView, badge: urgentCount }]
       : []),
-    { icon: "✅", label: "Resolved", view: "resolved", active: activeView === "resolved" },
+    { icon: "✅", label: "Resolved", view: "resolved", badge: resolvedCount, active: activeView === "resolved" },
     { sep: true },
     ...categories.slice(0, 6).map((c) => ({
       icon: c.emoji,

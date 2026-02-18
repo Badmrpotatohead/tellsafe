@@ -21,7 +21,9 @@ import {
   serverTimestamp,
   increment,
   Timestamp,
+  writeBatch,
 } from "./firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import type {
   Organization,
   Feedback,
@@ -34,52 +36,17 @@ import type {
   SubmitFeedbackRequest,
 } from "../types";
 
+const functions = getFunctions();
+
 // ============================================================
 // Organization Operations
 // ============================================================
 
-/** Create a new organization (direct Firestore write) */
+/** Create a new organization (calls Cloud Function for slug validation) */
 export async function createOrganization(name: string, slug: string) {
-  const { doc, setDoc, collection: col } = await import("firebase/firestore");
-  const user = auth.currentUser;
-  if (!user) throw new Error("Must be signed in");
-
-  const now = new Date().toISOString();
-  const orgRef = doc(col(db, "organizations"));
-
-  await setDoc(orgRef, {
-    name,
-    slug,
-    logoUrl: null,
-    primaryColor: "#2d6a6a",
-    accentColor: "#c05d3b",
-    tagline: "Your voice matters. Share your feedback anonymously.",
-    categories: [
-      { emoji: "💡", label: "Suggestion" },
-      { emoji: "❤️", label: "Praise" },
-      { emoji: "🤝", label: "Safety" },
-      { emoji: "💬", label: "Other" },
-    ],
-    plan: "free",
-    stripeCustomerId: null,
-    stripeSubscriptionId: null,
-    ownerId: user.uid,
-    submissionCount: 0,
-    submissionResetDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  await setDoc(doc(db, "slugs", slug), { orgId: orgRef.id });
-
-  await setDoc(doc(db, "organizations", orgRef.id, "admins", user.uid), {
-    email: user.email || "",
-    displayName: user.displayName || "Owner",
-    role: "owner",
-    joinedAt: now,
-  });
-
-  return { orgId: orgRef.id, slug };
+  const createOrg = httpsCallable(functions, "createOrganization");
+  const result = await createOrg({ name, slug });
+  return result.data as { orgId: string; slug: string };
 }
 
 /** Get org by slug (for public feedback form) */
@@ -133,6 +100,9 @@ export async function getMyOrganizations(): Promise<Organization[]> {
   const user = auth.currentUser;
   if (!user) return [];
 
+  // Query all orgs — then filter by admin subcollection
+  // In production, you'd denormalize this into a user-level collection
+  // for efficiency. For now this works at our scale.
   const orgsSnap = await getDocs(
     query(collections.organizations(), where("ownerId", "==", user.uid))
   );
@@ -170,6 +140,7 @@ export async function submitFeedback(
   }
 
   if (data.type === "relay" && data.relayEmail) {
+    // Send plaintext email temporarily — Cloud Function will encrypt and delete it
     feedbackData.relayEmailPlaintext = data.relayEmail;
   }
 
@@ -226,46 +197,29 @@ export async function updateFeedbackStatus(
   });
 }
 
-// ============================================================
-// Thread & Reply Operations
-// ============================================================
+/** Batch archive all resolved feedback for an org */
+export async function batchArchiveResolved(orgId: string): Promise<number> {
+  const q = query(
+    collections.feedback(orgId),
+    where("status", "==", "resolved")
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return 0;
 
-/** Create a thread for any feedback type (identified or relay) */
-export async function createThreadForFeedback(
-  orgId: string,
-  feedbackId: string
-): Promise<string> {
-  const now = new Date().toISOString();
-  const threadRef = await addDoc(collections.threads(orgId), {
-    orgId,
-    feedbackId,
-    status: "active",
-    messageCount: 0,
-    lastMessageAt: now,
-    createdAt: now,
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => {
+    batch.update(d.ref, {
+      status: "archived",
+      updatedAt: new Date().toISOString(),
+    });
   });
-
-  // Update the feedback doc with the threadId
-  await updateDoc(collections.feedbackDoc(orgId, feedbackId), {
-    threadId: threadRef.id,
-    updatedAt: now,
-  });
-
-  return threadRef.id;
+  await batch.commit();
+  return snap.size;
 }
 
-/** Get or create a thread for a feedback item */
-export async function getOrCreateThread(
-  orgId: string,
-  feedbackId: string,
-  existingThreadId?: string
-): Promise<string> {
-  if (existingThreadId) {
-    const threadSnap = await getDoc(collections.thread(orgId, existingThreadId));
-    if (threadSnap.exists()) return existingThreadId;
-  }
-  return createThreadForFeedback(orgId, feedbackId);
-}
+// ============================================================
+// Relay Thread Operations
+// ============================================================
 
 /** Subscribe to thread messages (real-time) */
 export function subscribeThreadMessages(
@@ -293,19 +247,11 @@ export async function sendAdminReply(
   text: string,
   authorName: string
 ) {
-  const now = new Date().toISOString();
-
   await addDoc(collections.messages(orgId, threadId), {
     from: "admin",
     authorName,
     text,
-    createdAt: now,
-  });
-
-  // Update thread metadata
-  await updateDoc(collections.thread(orgId, threadId), {
-    lastMessageAt: now,
-    messageCount: increment(1),
+    createdAt: new Date().toISOString(),
   });
 }
 
@@ -376,7 +322,7 @@ export async function deleteTemplate(orgId: string, templateId: string) {
   await deleteDoc(collections.template(orgId, templateId));
 }
 
-/** Increment template usage count */
+/** Increment template usage count (called when admin uses a template) */
 export async function trackTemplateUsage(
   orgId: string,
   templateId: string
@@ -413,6 +359,7 @@ export async function getFeedbackStats(orgId: string) {
   ).length;
   const urgent = items.filter((f) => f.sentimentLabel === "urgent").length;
 
+  // Category breakdown
   const categoryCounts: Record<string, number> = {};
   items.forEach((f) => {
     (f.categories || []).forEach((c: string) => {
@@ -424,6 +371,7 @@ export async function getFeedbackStats(orgId: string) {
     ([, a], [, b]) => b - a
   )[0];
 
+  // Sentiment breakdown
   const sentimentCounts = {
     positive: items.filter((f) => f.sentimentLabel === "positive").length,
     neutral: items.filter((f) => f.sentimentLabel === "neutral").length,

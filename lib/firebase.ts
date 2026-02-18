@@ -22,6 +22,7 @@ import {
   serverTimestamp,
   increment,
   Timestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -91,4 +92,5 @@ export {
   serverTimestamp,
   increment,
   Timestamp,
+  writeBatch,
 };

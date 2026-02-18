@@ -11,6 +11,7 @@ import AdminSidebar from "../../components/AdminSidebar";
 import DashboardStats from "../../components/DashboardStats";
 import FeedbackList from "../../components/FeedbackList";
 import FeedbackDetail from "../../components/FeedbackDetail";
+import { batchArchiveResolved } from "../../lib/data";
 import RelayThread from "../../components/RelayThread";
 import BrandingSettings from "../../components/BrandingSettings";
 import TemplatesManager from "../../components/TemplatesManager";
@@ -244,6 +245,27 @@ export default function AdminPage() {
                 )}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
+                {view === "inbox" && (
+                  <button
+                    onClick={async () => {
+                      const count = await batchArchiveResolved(orgId);
+                      if (count === 0) alert("No resolved feedback to archive.");
+                    }}
+                    style={{
+                      padding: "7px 16px",
+                      border: "1.5px solid rgba(26,26,46,0.10)",
+                      borderRadius: 8,
+                      background: "#fff",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      color: "#8a8578",
+                      fontFamily: fontStack,
+                    }}
+                  >
+                    📦 Archive Resolved
+                  </button>
+                )}
                 <button
                   style={{
                     padding: "7px 16px",
@@ -272,7 +294,7 @@ export default function AdminPage() {
                     fontFamily: fontStack,
                   }}
                 >
-                  🔗 Share Link
+                  🔗 Share Feedback Form Link
                 </button>
               </div>
             </div>
@@ -283,6 +305,7 @@ export default function AdminPage() {
               onOpenThread={openThread}
               onSelect={setSelectedFeedback}
               categoryFilter={categoryFilter}
+              showArchived={view === "resolved"}
             />
           </div>
         );
