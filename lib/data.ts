@@ -22,7 +22,6 @@ import {
   increment,
   Timestamp,
 } from "./firebase";
-
 import type {
   Organization,
   Feedback,
@@ -34,8 +33,6 @@ import type {
   OrgAdmin,
   SubmitFeedbackRequest,
 } from "../types";
-
-
 
 // ============================================================
 // Organization Operations
@@ -136,9 +133,6 @@ export async function getMyOrganizations(): Promise<Organization[]> {
   const user = auth.currentUser;
   if (!user) return [];
 
-  // Query all orgs — then filter by admin subcollection
-  // In production, you'd denormalize this into a user-level collection
-  // for efficiency. For now this works at our scale.
   const orgsSnap = await getDocs(
     query(collections.organizations(), where("ownerId", "==", user.uid))
   );
@@ -176,7 +170,6 @@ export async function submitFeedback(
   }
 
   if (data.type === "relay" && data.relayEmail) {
-    // Send plaintext email temporarily — Cloud Function will encrypt and delete it
     feedbackData.relayEmailPlaintext = data.relayEmail;
   }
 
@@ -234,8 +227,45 @@ export async function updateFeedbackStatus(
 }
 
 // ============================================================
-// Relay Thread Operations
+// Thread & Reply Operations
 // ============================================================
+
+/** Create a thread for any feedback type (identified or relay) */
+export async function createThreadForFeedback(
+  orgId: string,
+  feedbackId: string
+): Promise<string> {
+  const now = new Date().toISOString();
+  const threadRef = await addDoc(collections.threads(orgId), {
+    orgId,
+    feedbackId,
+    status: "active",
+    messageCount: 0,
+    lastMessageAt: now,
+    createdAt: now,
+  });
+
+  // Update the feedback doc with the threadId
+  await updateDoc(collections.feedbackDoc(orgId, feedbackId), {
+    threadId: threadRef.id,
+    updatedAt: now,
+  });
+
+  return threadRef.id;
+}
+
+/** Get or create a thread for a feedback item */
+export async function getOrCreateThread(
+  orgId: string,
+  feedbackId: string,
+  existingThreadId?: string
+): Promise<string> {
+  if (existingThreadId) {
+    const threadSnap = await getDoc(collections.thread(orgId, existingThreadId));
+    if (threadSnap.exists()) return existingThreadId;
+  }
+  return createThreadForFeedback(orgId, feedbackId);
+}
 
 /** Subscribe to thread messages (real-time) */
 export function subscribeThreadMessages(
@@ -263,11 +293,19 @@ export async function sendAdminReply(
   text: string,
   authorName: string
 ) {
+  const now = new Date().toISOString();
+
   await addDoc(collections.messages(orgId, threadId), {
     from: "admin",
     authorName,
     text,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+  });
+
+  // Update thread metadata
+  await updateDoc(collections.thread(orgId, threadId), {
+    lastMessageAt: now,
+    messageCount: increment(1),
   });
 }
 
@@ -338,7 +376,7 @@ export async function deleteTemplate(orgId: string, templateId: string) {
   await deleteDoc(collections.template(orgId, templateId));
 }
 
-/** Increment template usage count (called when admin uses a template) */
+/** Increment template usage count */
 export async function trackTemplateUsage(
   orgId: string,
   templateId: string
@@ -375,7 +413,6 @@ export async function getFeedbackStats(orgId: string) {
   ).length;
   const urgent = items.filter((f) => f.sentimentLabel === "urgent").length;
 
-  // Category breakdown
   const categoryCounts: Record<string, number> = {};
   items.forEach((f) => {
     (f.categories || []).forEach((c: string) => {
@@ -387,7 +424,6 @@ export async function getFeedbackStats(orgId: string) {
     ([, a], [, b]) => b - a
   )[0];
 
-  // Sentiment breakdown
   const sentimentCounts = {
     positive: items.filter((f) => f.sentimentLabel === "positive").length,
     neutral: items.filter((f) => f.sentimentLabel === "neutral").length,

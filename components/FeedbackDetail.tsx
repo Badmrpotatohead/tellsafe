@@ -1,39 +1,95 @@
 // ============================================================
-// TellSafe — Feedback Detail Panel
+// TellSafe — Feedback Detail Panel with In-App Reply
 // ============================================================
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useBrand } from "./BrandProvider";
-import { updateFeedbackStatus } from "../lib/data";
-import type { Feedback, FeedbackStatus } from "../types";
+import { useAuth } from "./AuthProvider";
+import {
+  updateFeedbackStatus,
+  getOrCreateThread,
+  sendAdminReply,
+  subscribeThreadMessages,
+} from "../lib/data";
+import type { Feedback, FeedbackStatus, ThreadMessage } from "../types";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
-const displayFont = "'Fraunces', Georgia, serif";
 
 interface Props {
   orgId: string;
   feedback: Feedback;
   onClose: () => void;
-  onOpenThread?: (threadId: string, feedbackId: string) => void;
 }
 
-export default function FeedbackDetail({ orgId, feedback: f, onClose, onOpenThread }: Props) {
+export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
   const { theme } = useBrand();
+  const { user } = useAuth();
   const [status, setStatus] = useState<FeedbackStatus>(f.status);
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>((f as any).threadId || null);
+  const [messages, setMessages] = useState<ThreadMessage[]>([]);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Subscribe to messages when thread exists
+  useEffect(() => {
+    if (!threadId) return;
+    const unsub = subscribeThreadMessages(orgId, threadId, (msgs) => {
+      setMessages(msgs);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    });
+    return unsub;
+  }, [orgId, threadId]);
 
   const handleStatusChange = async (newStatus: FeedbackStatus) => {
     await updateFeedbackStatus(orgId, f.id, newStatus);
     setStatus(newStatus);
   };
 
+  const handleSendReply = async () => {
+    if (!replyText.trim() || sending) return;
+    setSending(true);
+
+    try {
+      // Get or create thread
+      let tid = threadId;
+      if (!tid) {
+        setLoadingThread(true);
+        tid = await getOrCreateThread(orgId, f.id);
+        setThreadId(tid);
+        setLoadingThread(false);
+      }
+
+      const adminName = user?.displayName || "Admin";
+      await sendAdminReply(orgId, tid, replyText.trim(), adminName);
+
+      // Auto-update status to replied
+      if (status === "new" || status === "needs_reply") {
+        await updateFeedbackStatus(orgId, f.id, "replied");
+        setStatus("replied");
+      }
+
+      setReplyText("");
+    } catch (err) {
+      console.error("Failed to send reply:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Normalize field names
+  const contactName = (f as any).authorName || (f as any).name || null;
+  const contactEmail = (f as any).authorEmail || (f as any).email || null;
+  const canReply = f.type === "identified" || f.type === "relay";
+
   const typeLabels: Record<string, { icon: string; label: string; color: string }> = {
     identified: { icon: "👋", label: "Identified", color: theme.accent },
     anonymous: { icon: "👤", label: "Anonymous", color: theme.primary },
     relay: { icon: "🔀", label: "Anonymous Relay", color: theme.violet },
   };
-
   const tc = typeLabels[f.type] || typeLabels.anonymous;
 
   const statusOptions: { value: FeedbackStatus; label: string; color: string }[] = [
@@ -43,6 +99,18 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose, onOpenThre
     { value: "resolved", label: "Resolved", color: theme.muted },
   ];
 
+  const formatTime = (iso: string) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  };
+
   return (
     <div
       style={{
@@ -50,9 +118,9 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose, onOpenThre
         top: 0,
         right: 0,
         bottom: 0,
-        width: 480,
+        width: 500,
         background: "#fff",
-        boxShadow: "-4px 0 24px rgba(0,0,0,0.1)",
+        boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
         zIndex: 100,
         display: "flex",
         flexDirection: "column",
@@ -64,14 +132,15 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose, onOpenThre
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
       `}</style>
 
-      {/* Header */}
+      {/* ====== Header ====== */}
       <div
         style={{
-          padding: "20px 24px",
-          borderBottom: `1px solid ${theme.divider}`,
+          padding: "16px 20px",
+          borderBottom: `1px solid #e8e5de`,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexShrink: 0,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -99,7 +168,7 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose, onOpenThre
             border: "none",
             fontSize: 22,
             cursor: "pointer",
-            color: theme.muted,
+            color: "#8a8578",
             padding: "4px 8px",
             lineHeight: 1,
           }}
@@ -108,163 +177,206 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose, onOpenThre
         </button>
       </div>
 
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-        {/* Categories */}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-          {f.categories.map((cat) => (
-            <span
-              key={cat}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                padding: "3px 10px",
-                borderRadius: 6,
-                background: theme.paperWarm,
-                color: theme.muted,
-              }}
-            >
-              {cat}
-            </span>
-          ))}
-        </div>
+      {/* ====== Scrollable Content ====== */}
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
 
-        {/* Timestamp */}
-        <div style={{ fontSize: 12, color: theme.muted, marginBottom: 16 }}>
-          {new Date(f.createdAt).toLocaleString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          })}
-        </div>
-
-        {/* Contact info for identified */}
-        {f.type === "identified" && "authorName" in f && (
-          <div
-            style={{
-              background: theme.accentGlow,
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 20,
-              border: `1px solid ${theme.accent}22`,
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: theme.accent, marginBottom: 8 }}>
-              Contact Info
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-              {(f as any).authorName}
-            </div>
-            {(f as any).authorEmail && (
-              <a
-                href={`mailto:${(f as any).authorEmail}`}
-                style={{ fontSize: 13, color: theme.accent, textDecoration: "none" }}
-              >
-                {(f as any).authorEmail} →
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* Anonymous notice */}
-        {f.type === "anonymous" && (
-          <div
-            style={{
-              background: theme.primaryGlow,
-              borderRadius: 12,
-              padding: 14,
-              marginBottom: 20,
-              fontSize: 13,
-              color: theme.primary,
-              border: `1px solid ${theme.primary}22`,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            🔒 Fully anonymous — no way to reply or identify this person.
-          </div>
-        )}
-
-        {/* Relay notice */}
-        {f.type === "relay" && (
-          <div
-            style={{
-              background: theme.violetGlow,
-              borderRadius: 12,
-              padding: 14,
-              marginBottom: 20,
-              fontSize: 13,
-              color: theme.violet,
-              border: `1px solid ${theme.violet}22`,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              🔀 Anonymous Relay — reply without seeing their identity.
-            </div>
-            {"threadId" in f && onOpenThread && (
-              <button
-                onClick={() => onOpenThread((f as any).threadId, f.id)}
+        {/* --- Feedback Info Section --- */}
+        <div style={{ padding: "20px 20px 16px" }}>
+          {/* Categories */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+            {f.categories.map((cat) => (
+              <span
+                key={cat}
                 style={{
-                  padding: "8px 18px",
-                  background: theme.violet,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  fontSize: 13,
+                  fontSize: 10,
                   fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: fontStack,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  padding: "3px 10px",
+                  borderRadius: 6,
+                  background: "#f2f0eb",
+                  color: "#8a8578",
                 }}
               >
-                Open Relay Thread →
-              </button>
-            )}
+                {cat}
+              </span>
+            ))}
           </div>
-        )}
 
-        {/* Full feedback text */}
-        <div
-          style={{
-            fontSize: 15,
-            lineHeight: 1.75,
-            color: theme.ink,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {f.text}
+          {/* Timestamp */}
+          <div style={{ fontSize: 11, color: "#8a8578", marginBottom: 14 }}>
+            {new Date(f.createdAt).toLocaleString("en-US", {
+              weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+            })}
+          </div>
+
+          {/* Contact info for identified */}
+          {f.type === "identified" && contactName && (
+            <div
+              style={{
+                background: `${theme.accent}08`,
+                borderRadius: 10,
+                padding: 14,
+                marginBottom: 14,
+                border: `1px solid ${theme.accent}18`,
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: theme.accent, marginBottom: 6 }}>
+                Contact Info
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2, color: "#1a1a2e" }}>
+                {contactName}
+              </div>
+              {contactEmail && (
+                <div style={{ fontSize: 12, color: theme.accent }}>{contactEmail}</div>
+              )}
+            </div>
+          )}
+
+          {/* Anonymous notice */}
+          {f.type === "anonymous" && (
+            <div
+              style={{
+                background: `${theme.primary}08`,
+                borderRadius: 10,
+                padding: 14,
+                marginBottom: 14,
+                fontSize: 13,
+                color: theme.primary,
+                border: `1px solid ${theme.primary}18`,
+              }}
+            >
+              🔒 Fully anonymous — no way to reply or identify this person.
+            </div>
+          )}
+
+          {/* Relay notice */}
+          {f.type === "relay" && (
+            <div
+              style={{
+                background: `${theme.violet}08`,
+                borderRadius: 10,
+                padding: 14,
+                marginBottom: 14,
+                fontSize: 13,
+                color: theme.violet,
+                border: `1px solid ${theme.violet}18`,
+              }}
+            >
+              🔀 Anonymous Relay — replies are sent via encrypted email.
+            </div>
+          )}
+        </div>
+
+        {/* --- Conversation Thread --- */}
+        <div style={{ flex: 1, padding: "0 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Original feedback message */}
+          <div style={{ display: "flex", gap: 10 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: `${tc.color}15`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                flexShrink: 0,
+              }}
+            >
+              {f.type === "identified" ? "👋" : f.type === "relay" ? "🔀" : "👤"}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+                  {f.type === "identified" ? (contactName || "Member") : "Anonymous Member"}
+                </span>
+                <span style={{ fontSize: 10, color: "#8a8578" }}>{formatTime(f.createdAt)}</span>
+              </div>
+              <div
+                style={{
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  color: "#1a1a2e",
+                  background: "#f8f6f1",
+                  borderRadius: "4px 14px 14px 14px",
+                  padding: "12px 16px",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {f.text}
+              </div>
+            </div>
+          </div>
+
+          {/* Thread messages */}
+          {messages.map((msg) => {
+            const isAdmin = msg.from === "admin";
+            return (
+              <div key={msg.id} style={{ display: "flex", gap: 10, flexDirection: isAdmin ? "row-reverse" : "row" }}>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    background: isAdmin ? `${theme.primary}15` : `${tc.color}15`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 14,
+                    flexShrink: 0,
+                  }}
+                >
+                  {isAdmin ? "🛡️" : "👤"}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexDirection: isAdmin ? "row-reverse" : "row" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+                      {isAdmin ? (msg.authorName || "Admin") : "Member"}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#8a8578" }}>{formatTime(msg.createdAt)}</span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                      color: "#1a1a2e",
+                      background: isAdmin ? `${theme.primary}10` : "#f8f6f1",
+                      borderRadius: isAdmin ? "14px 4px 14px 14px" : "4px 14px 14px 14px",
+                      padding: "12px 16px",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Footer — status controls */}
-      <div
-        style={{
-          padding: "16px 24px",
-          borderTop: `1px solid ${theme.divider}`,
-          background: theme.paper,
-        }}
-      >
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: theme.muted, marginBottom: 10 }}>
-          Status
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
+      {/* ====== Footer ====== */}
+      <div style={{ flexShrink: 0, borderTop: "1px solid #e8e5de" }}>
+
+        {/* Status bar */}
+        <div style={{ padding: "12px 20px", display: "flex", gap: 6 }}>
           {statusOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => handleStatusChange(opt.value)}
               style={{
                 flex: 1,
-                padding: "8px 4px",
-                borderRadius: 8,
-                border: `1.5px solid ${status === opt.value ? opt.color : theme.divider}`,
-                background: status === opt.value ? opt.color + "15" : "#fff",
-                color: status === opt.value ? opt.color : theme.muted,
-                fontSize: 11,
+                padding: "6px 4px",
+                borderRadius: 6,
+                border: `1.5px solid ${status === opt.value ? opt.color : "#e8e5de"}`,
+                background: status === opt.value ? opt.color + "12" : "#fff",
+                color: status === opt.value ? opt.color : "#8a8578",
+                fontSize: 10,
                 fontWeight: 700,
                 cursor: "pointer",
                 fontFamily: fontStack,
@@ -275,29 +387,56 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose, onOpenThre
           ))}
         </div>
 
-        {/* Reply button for identified */}
-        {f.type === "identified" && "authorEmail" in f && (f as any).authorEmail && (
-          <a
-            href={`mailto:${(f as any).authorEmail}?subject=Re: Your feedback to ${f.categories.join(", ") || "our community"}`}
-            style={{
-              display: "block",
-              width: "100%",
-              padding: 12,
-              marginTop: 12,
-              background: theme.accent,
-              color: "#fff",
-              border: "none",
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              textAlign: "center",
-              textDecoration: "none",
-              fontFamily: fontStack,
-            }}
-          >
-            ✉️ Reply via Email
-          </a>
+        {/* Reply input (only for identified and relay) */}
+        {canReply && (
+          <div style={{ padding: "0 20px 16px", display: "flex", gap: 8 }}>
+            <textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  handleSendReply();
+                }
+              }}
+              placeholder={
+                f.type === "identified"
+                  ? `Reply to ${contactName || "member"}...`
+                  : "Reply anonymously via relay..."
+              }
+              rows={2}
+              style={{
+                flex: 1,
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1.5px solid #e8e5de",
+                fontSize: 13,
+                fontFamily: fontStack,
+                resize: "none",
+                outline: "none",
+                lineHeight: 1.5,
+              }}
+            />
+            <button
+              onClick={handleSendReply}
+              disabled={!replyText.trim() || sending}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 10,
+                border: "none",
+                background: replyText.trim() ? theme.primary : "#e8e5de",
+                color: replyText.trim() ? "#fff" : "#8a8578",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: replyText.trim() ? "pointer" : "default",
+                fontFamily: fontStack,
+                alignSelf: "flex-end",
+                transition: "all 0.15s",
+              }}
+            >
+              {sending ? "..." : "Send"}
+            </button>
+          </div>
         )}
       </div>
     </div>
