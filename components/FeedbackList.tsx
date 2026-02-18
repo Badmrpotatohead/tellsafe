@@ -204,7 +204,7 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
                     >
                       ↩ Reopen
                     </button>
-                  ) : f.status !== "resolved" && (
+                  ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "resolved"); }}
                       style={{
