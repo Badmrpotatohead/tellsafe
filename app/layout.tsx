@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "TellSafe — Anonymous Feedback for Communities",
   description:
     "Give your community a safe, anonymous way to share feedback. Three privacy modes, encrypted email relay, and a beautiful admin dashboard.",
+  icons: {
+    icon: "/icon.svg",
+  },
   openGraph: {
     title: "TellSafe — Anonymous Feedback for Communities",
     description:
@@ -27,7 +30,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
       </head>

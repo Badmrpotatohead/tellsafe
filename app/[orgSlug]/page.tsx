@@ -1,3 +1,9 @@
+// ============================================================
+// TellSafe — Public Feedback Form Page
+// ============================================================
+// Route: tellsafe.app/{orgSlug}
+// Loads org branding server-side, passes to BrandProvider + FeedbackForm.
+
 import { notFound } from "next/navigation";
 import { BrandProvider } from "../../components/BrandProvider";
 import FeedbackForm from "../../components/FeedbackForm";
@@ -8,8 +14,11 @@ interface Props {
   params: { orgSlug: string };
 }
 
+// Server-side data fetch using Admin SDK
 async function getOrgBySlug(slug: string): Promise<Organization | null> {
   const { adminDb } = await import("../../lib/firebase-admin");
+
+  // Look up orgId from the slugs collection
   const slugDoc = await adminDb.collection("slugs").doc(slug).get();
   if (!slugDoc.exists) return null;
 
@@ -20,6 +29,7 @@ async function getOrgBySlug(slug: string): Promise<Organization | null> {
   return { id: orgSnap.id, ...orgSnap.data() } as Organization;
 }
 
+// Dynamic metadata for SEO + social sharing
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const org = await getOrgBySlug(params.orgSlug);
   if (!org) return { title: "Not Found — TellSafe" };
@@ -27,6 +37,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `Share Feedback — ${org.name} | TellSafe`,
     description: org.tagline,
+    openGraph: {
+      title: `Share Feedback with ${org.name}`,
+      description: org.tagline,
+      type: "website",
+      siteName: "TellSafe",
+    },
   };
 }
 
@@ -46,6 +62,7 @@ export default async function FeedbackPage({ params }: Props) {
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
       `}</style>
       <BrandProvider org={org}>
         <FeedbackForm org={org} />
@@ -53,4 +70,3 @@ export default async function FeedbackPage({ params }: Props) {
     </>
   );
 }
-

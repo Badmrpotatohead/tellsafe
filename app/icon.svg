@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 50 312 380" width="512" height="512">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d6a6a"/>
+      <stop offset="100%" style="stop-color:#1f4f4f"/>
+    </linearGradient>
+    <linearGradient id="bubbleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c05d3b"/>
+      <stop offset="100%" style="stop-color:#d4714f"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Shield body -->
+  <path d="M256 72 L380 128 C380 128 392 280 256 408 C120 280 132 128 132 128 Z" 
+        fill="url(#shieldGrad)"/>
+  
+  <!-- Speech bubble -->
+  <g transform="translate(256, 230)">
+    <rect x="-68" y="-48" width="136" height="86" rx="18" ry="18" fill="url(#bubbleGrad)"/>
+    <polygon points="-12,38 8,38 -4,58" fill="#c05d3b"/>
+    <circle cx="-30" cy="-5" r="8" fill="rgba(255,255,255,0.9)"/>
+    <circle cx="0" cy="-5" r="8" fill="rgba(255,255,255,0.9)"/>
+    <circle cx="30" cy="-5" r="8" fill="rgba(255,255,255,0.9)"/>
+  </g>
+</svg>
