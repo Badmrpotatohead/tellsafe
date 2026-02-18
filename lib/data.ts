@@ -255,6 +255,36 @@ export async function sendAdminReply(
   });
 }
 
+/** Get or create a thread for a feedback item (for in-app replies) */
+export async function getOrCreateThread(
+  orgId: string,
+  feedbackId: string
+): Promise<string> {
+  // Check if feedback already has a threadId
+  const feedbackDoc = await getDoc(collections.feedbackDoc(orgId, feedbackId));
+  const data = feedbackDoc.data();
+  if (data?.threadId) return data.threadId;
+
+  // Create a new thread
+  const now = new Date().toISOString();
+  const threadRef = await addDoc(collections.threads(orgId), {
+    orgId,
+    feedbackId,
+    status: "active",
+    messageCount: 0,
+    lastMessageAt: now,
+    createdAt: now,
+  });
+
+  // Link thread back to feedback
+  await updateDoc(collections.feedbackDoc(orgId, feedbackId), {
+    threadId: threadRef.id,
+    updatedAt: now,
+  });
+
+  return threadRef.id;
+}
+
 /** Get all threads for an org */
 export function subscribeThreads(
   orgId: string,
