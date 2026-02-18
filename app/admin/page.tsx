@@ -1,10 +1,6 @@
 // ============================================================
 // TellSafe — Admin Dashboard Page
 // ============================================================
-// Route: tellsafe.app/admin
-// Protected page — requires authentication.
-// Composes all admin components into a single-page app with
-// sidebar navigation routing between views.
 
 "use client";
 
@@ -29,6 +25,7 @@ export default function AdminPage() {
   const [view, setView] = useState<AdminView>("inbox");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadFeedbackId, setThreadFeedbackId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
 
   // Loading state
@@ -63,7 +60,7 @@ export default function AdminPage() {
     );
   }
 
-  // Auth gate — redirect to login if not authenticated
+  // Auth gate
   if (!user) {
     return (
       <div
@@ -77,7 +74,9 @@ export default function AdminPage() {
         }}
       >
         <div style={{ textAlign: "center", maxWidth: 360 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
+          <a href="/" style={{ textDecoration: "none", color: "inherit" }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
+          </a>
           <h1
             style={{
               fontFamily: displayFont,
@@ -111,7 +110,7 @@ export default function AdminPage() {
     );
   }
 
-  // No org yet — prompt to create
+  // No org yet
   if (!org) {
     return (
       <div
@@ -125,7 +124,9 @@ export default function AdminPage() {
         }}
       >
         <div style={{ textAlign: "center", maxWidth: 400 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+          <a href="/" style={{ textDecoration: "none", color: "inherit" }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+          </a>
           <h1 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8 }}>
             Welcome to TellSafe!
           </h1>
@@ -154,7 +155,6 @@ export default function AdminPage() {
 
   const orgId = org.id;
 
-  // Handle opening a relay thread
   const openThread = (tid: string, fid: string) => {
     setThreadId(tid);
     setThreadFeedbackId(fid);
@@ -167,7 +167,7 @@ export default function AdminPage() {
     setThreadFeedbackId(null);
   };
 
-  // If viewing a thread, show the thread view
+  // Thread view
   if (threadId && threadFeedbackId) {
     return (
       <BrandProvider org={org}>
@@ -180,7 +180,13 @@ export default function AdminPage() {
           @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
         `}</style>
         <div style={{ display: "flex", minHeight: "100vh" }}>
-          <AdminSidebar orgId={orgId} activeView={view} onNavigate={(v) => { closeThread(); setView(v); }} />
+          <AdminSidebar
+            orgId={orgId}
+            activeView={view}
+            onNavigate={(v) => { closeThread(); setView(v); }}
+            activeCategory={categoryFilter}
+            onCategoryFilter={setCategoryFilter}
+          />
           <main style={{ marginLeft: 240, flex: 1 }}>
             <RelayThread
               orgId={orgId}
@@ -194,7 +200,6 @@ export default function AdminPage() {
     );
   }
 
-  // Render the appropriate view
   const renderView = () => {
     switch (view) {
       case "inbox":
@@ -210,13 +215,34 @@ export default function AdminPage() {
                 marginBottom: 24,
               }}
             >
-              <h1 style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600 }}>
-                {view === "inbox"
-                  ? "Feedback Inbox"
-                  : view === "needs_reply"
-                  ? "Needs Reply"
-                  : "Resolved"}
-              </h1>
+              <div>
+                <h1 style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600 }}>
+                  {categoryFilter
+                    ? categoryFilter
+                    : view === "inbox"
+                    ? "Feedback Inbox"
+                    : view === "needs_reply"
+                    ? "Needs Reply"
+                    : "Resolved"}
+                </h1>
+                {categoryFilter && (
+                  <button
+                    onClick={() => setCategoryFilter(null)}
+                    style={{
+                      marginTop: 6,
+                      fontSize: 12,
+                      color: "#8a8578",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontFamily: fontStack,
+                      padding: 0,
+                    }}
+                  >
+                    ← Back to all feedback
+                  </button>
+                )}
+              </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   style={{
@@ -251,8 +277,13 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <DashboardStats orgId={orgId} />
-            <FeedbackList orgId={orgId} onOpenThread={openThread} onSelect={setSelectedFeedback} />
+            {!categoryFilter && <DashboardStats orgId={orgId} />}
+            <FeedbackList
+              orgId={orgId}
+              onOpenThread={openThread}
+              onSelect={setSelectedFeedback}
+              categoryFilter={categoryFilter}
+            />
           </div>
         );
 
@@ -304,9 +335,16 @@ export default function AdminPage() {
         @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
       `}</style>
       <div style={{ display: "flex", minHeight: "100vh", background: "#f2f0eb" }}>
-        <AdminSidebar orgId={orgId} activeView={view} onNavigate={(v) => { setSelectedFeedback(null); setView(v); }} />
+        <AdminSidebar
+          orgId={orgId}
+          activeView={view}
+          onNavigate={(v) => { setCategoryFilter(null); setView(v); }}
+          activeCategory={categoryFilter}
+          onCategoryFilter={setCategoryFilter}
+        />
         <main style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
           {renderView()}
           {selectedFeedback && (

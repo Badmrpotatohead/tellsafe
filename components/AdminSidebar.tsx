@@ -20,9 +20,11 @@ interface Props {
   orgId: string;
   activeView: AdminView;
   onNavigate: (view: AdminView) => void;
+  activeCategory?: string | null;
+  onCategoryFilter?: (category: string | null) => void;
 }
 
-export default function AdminSidebar({ orgId, activeView, onNavigate }: Props) {
+export default function AdminSidebar({ orgId, activeView, onNavigate, activeCategory, onCategoryFilter }: Props) {
   const { theme, orgName, logoUrl, categories } = useBrand();
   const { logout } = useAuth();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
@@ -38,21 +40,32 @@ export default function AdminSidebar({ orgId, activeView, onNavigate }: Props) {
   ).length;
   const urgentCount = feedback.filter((f) => f.sentimentLabel === "urgent").length;
 
+  // Count feedback per category
+  const categoryCounts: Record<string, number> = {};
+  feedback.forEach((f) => {
+    (f.categories || []).forEach((c) => {
+      categoryCounts[c] = (categoryCounts[c] || 0) + 1;
+    });
+  });
+
   type NavItem =
     | { sep: true }
-    | { icon: string; label: string; view?: AdminView; badge?: number; active?: boolean; onClick?: () => void };
+    | { icon: string; label: string; view?: AdminView; badge?: number; active?: boolean; onClick?: () => void; category?: string };
 
   const navItems: NavItem[] = [
-    { icon: "📥", label: "Inbox", view: "inbox", badge: totalCount, active: activeView === "inbox" },
+    { icon: "📥", label: "Inbox", view: "inbox", badge: totalCount, active: activeView === "inbox" && !activeCategory },
     { icon: "⚡", label: "Needs Reply", view: "needs_reply", badge: needsReplyCount, active: activeView === "needs_reply" },
     ...(urgentCount > 0
       ? [{ icon: "🚨", label: "Urgent", view: "inbox" as AdminView, badge: urgentCount }]
       : []),
     { icon: "✅", label: "Resolved", view: "resolved", active: activeView === "resolved" },
     { sep: true },
-    ...categories.slice(0, 5).map((c) => ({
+    ...categories.slice(0, 6).map((c) => ({
       icon: c.emoji,
       label: c.label,
+      category: c.label,
+      badge: categoryCounts[c.label] || 0,
+      active: activeCategory === c.label,
     })),
     { sep: true },
     { icon: "🎨", label: "Branding", view: "branding" as AdminView, active: activeView === "branding" },
@@ -79,11 +92,15 @@ export default function AdminSidebar({ orgId, activeView, onNavigate }: Props) {
         fontFamily: fontStack,
       }}
     >
-      {/* Org header */}
-      <div
+      {/* Org header — links home */}
+      <a
+        href="/"
         style={{
+          display: "block",
           padding: "22px 20px 18px",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
+          textDecoration: "none",
+          color: "#f8f6f1",
         }}
       >
         {logoUrl ? (
@@ -117,7 +134,7 @@ export default function AdminSidebar({ orgId, activeView, onNavigate }: Props) {
         >
           Admin Console
         </span>
-      </div>
+      </a>
 
       {/* Navigation */}
       <nav style={{ padding: "10px 0", flex: 1 }}>
@@ -143,8 +160,18 @@ export default function AdminSidebar({ orgId, activeView, onNavigate }: Props) {
               href="#"
               onClick={(e) => {
                 e.preventDefault();
-                if (item.onClick) item.onClick();
-                else if (item.view) onNavigate(item.view);
+                if (item.onClick) {
+                  item.onClick();
+                } else if (item.category) {
+                  // Category filter — toggle
+                  if (onCategoryFilter) {
+                    onCategoryFilter(activeCategory === item.category ? null : item.category);
+                  }
+                  onNavigate("inbox");
+                } else if (item.view) {
+                  if (onCategoryFilter) onCategoryFilter(null);
+                  onNavigate(item.view);
+                }
               }}
               style={{
                 display: "flex",
@@ -193,7 +220,9 @@ export default function AdminSidebar({ orgId, activeView, onNavigate }: Props) {
           color: "rgba(255,255,255,0.25)",
         }}
       >
-        🛡️ Powered by TellSafe
+        <a href="/" style={{ color: "rgba(255,255,255,0.25)", textDecoration: "none" }}>
+          🛡️ Powered by TellSafe
+        </a>
       </div>
     </aside>
   );

@@ -70,16 +70,18 @@ export default function LoginPage() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div
-            style={{
-              width: 48, height: 48, borderRadius: 14,
-              background: "linear-gradient(135deg, #2d6a6a, #c05d3b)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 22, margin: "0 auto 16px",
-            }}
-          >
-            🛡️
-          </div>
+          <a href="/" style={{ textDecoration: "none" }}>
+            <div
+              style={{
+                width: 48, height: 48, borderRadius: 14,
+                background: "linear-gradient(135deg, #2d6a6a, #c05d3b)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 22, margin: "0 auto 16px",
+              }}
+            >
+              🛡️
+            </div>
+          </a>
           <h1 style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600, marginBottom: 6 }}>
             Welcome back
           </h1>
