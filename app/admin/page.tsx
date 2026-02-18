@@ -14,6 +14,7 @@ import { BrandProvider } from "../../components/BrandProvider";
 import AdminSidebar from "../../components/AdminSidebar";
 import DashboardStats from "../../components/DashboardStats";
 import FeedbackList from "../../components/FeedbackList";
+import FeedbackDetail from "../../components/FeedbackDetail";
 import RelayThread from "../../components/RelayThread";
 import BrandingSettings from "../../components/BrandingSettings";
 import TemplatesManager from "../../components/TemplatesManager";
@@ -28,6 +29,7 @@ export default function AdminPage() {
   const [view, setView] = useState<AdminView>("inbox");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadFeedbackId, setThreadFeedbackId] = useState<string | null>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
 
   // Loading state
   if (loading) {
@@ -63,7 +65,6 @@ export default function AdminPage() {
 
   // Auth gate — redirect to login if not authenticated
   if (!user) {
-    // In production, use Next.js redirect or middleware
     return (
       <div
         style={{
@@ -157,7 +158,8 @@ export default function AdminPage() {
   const openThread = (tid: string, fid: string) => {
     setThreadId(tid);
     setThreadFeedbackId(fid);
-    setView("inbox"); // stays on inbox, but shows thread overlay
+    setSelectedFeedback(null);
+    setView("inbox");
   };
 
   const closeThread = () => {
@@ -250,7 +252,7 @@ export default function AdminPage() {
             </div>
 
             <DashboardStats orgId={orgId} />
-            <FeedbackList orgId={orgId} onOpenThread={openThread} />
+            <FeedbackList orgId={orgId} onOpenThread={openThread} onSelect={setSelectedFeedback} />
           </div>
         );
 
@@ -304,8 +306,18 @@ export default function AdminPage() {
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
       `}</style>
       <div style={{ display: "flex", minHeight: "100vh", background: "#f2f0eb" }}>
-        <AdminSidebar orgId={orgId} activeView={view} onNavigate={setView} />
-        <main style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>{renderView()}</main>
+        <AdminSidebar orgId={orgId} activeView={view} onNavigate={(v) => { setSelectedFeedback(null); setView(v); }} />
+        <main style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
+          {renderView()}
+          {selectedFeedback && (
+            <FeedbackDetail
+              orgId={orgId}
+              feedback={selectedFeedback}
+              onClose={() => setSelectedFeedback(null)}
+              onOpenThread={openThread}
+            />
+          )}
+        </main>
       </div>
     </BrandProvider>
   );

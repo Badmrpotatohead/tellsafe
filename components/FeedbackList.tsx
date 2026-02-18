@@ -16,9 +16,10 @@ const displayFont = "'Fraunces', Georgia, serif";
 interface Props {
   orgId: string;
   onOpenThread: (threadId: string, feedbackId: string) => void;
+  onSelect?: (feedback: Feedback) => void;
 }
 
-export default function FeedbackList({ orgId, onOpenThread }: Props) {
+export default function FeedbackList({ orgId, onOpenThread, onSelect }: Props) {
   const { theme } = useBrand();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [filter, setFilter] = useState<string>("all");
@@ -177,6 +178,8 @@ export default function FeedbackList({ orgId, onOpenThread }: Props) {
               onClick={() => {
                 if (isRelay && "threadId" in f) {
                   onOpenThread((f as any).threadId, f.id);
+                } else if (onSelect) {
+                  onSelect(f);
                 }
               }}
               style={{
@@ -186,7 +189,7 @@ export default function FeedbackList({ orgId, onOpenThread }: Props) {
                 boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
                 display: "flex",
                 gap: 14,
-                cursor: isRelay ? "pointer" : "default",
+                cursor: "pointer",
                 borderLeft: `4px solid ${tc.border}`,
                 transition: "all 0.2s",
                 animation: `slideIn 0.35s ease ${i * 0.03}s both`,
@@ -291,29 +294,26 @@ export default function FeedbackList({ orgId, onOpenThread }: Props) {
                   {f.type === "anonymous" && <span>No reply possible</span>}
 
                   {/* Quick actions */}
-                 <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateFeedbackStatus(
-                        orgId,
-                        f.id,
-                        f.status === "resolved" ? "new" : "resolved"
-                      );
-                    }}
-                    style={{
-                      marginLeft: "auto",
-                      fontSize: 11,
-                      color: f.status === "resolved" ? theme.accent : theme.primary,
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      fontFamily: fontStack,
-                    }}
-                  >
-                    {f.status === "resolved" ? "↩ Reopen" : "✓ Resolve"}
-                  </button>
-                
+                  {f.status !== "resolved" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateFeedbackStatus(orgId, f.id, "resolved");
+                      }}
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: 11,
+                        color: theme.primary,
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontFamily: fontStack,
+                      }}
+                    >
+                      ✓ Resolve
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
