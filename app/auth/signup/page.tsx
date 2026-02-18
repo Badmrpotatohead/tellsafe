@@ -16,7 +16,7 @@ const monoFont = "'JetBrains Mono', monospace";
 export default function SignupPage() {
   const router = useRouter();
   const { signup, error: authError } = useAuth();
-  const [step, setStep] = useState<"account" | "org">("account");
+  const [step, setStep] = useState<"account" | "org" | "verify">("account");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
