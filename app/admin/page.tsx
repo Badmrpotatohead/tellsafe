@@ -314,7 +314,6 @@ export default function AdminPage() {
               orgId={orgId}
               feedback={selectedFeedback}
               onClose={() => setSelectedFeedback(null)}
-              onOpenThread={openThread}
             />
           )}
         </main>
