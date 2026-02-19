@@ -3,8 +3,11 @@ const nextConfig = {
   images: {
     domains: ["firebasestorage.googleapis.com"],
   },
-  // Server components need firebase-admin — mark as external
-  serverExternalPackages: ["firebase-admin"],
+  experimental: {
+    // firebase-admin uses native Node modules (gRPC, crypto) that break
+    // when bundled by webpack — must be loaded as external packages
+    serverComponentsExternalPackages: ["firebase-admin"],
+  },
 };
 
 module.exports = nextConfig;

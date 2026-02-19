@@ -4,7 +4,8 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
 import { BrandProvider } from "../../components/BrandProvider";
 import AdminSidebar from "../../components/AdminSidebar";
@@ -20,12 +21,25 @@ import AnalyticsDashboard from "../../components/AnalyticsDashboard";
 import SurveyList from "../../components/SurveyList";
 import SurveyBuilder from "../../components/SurveyBuilder";
 import SurveyResults from "../../components/SurveyResults";
+import BillingSettings from "../../components/BillingSettings";
 import type { AdminView } from "../../components/AdminSidebar";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
 
 export default function AdminPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', system-ui, sans-serif", background: "#f2f0eb" }}>
+        <p style={{ color: "#8a8578", fontSize: 14 }}>Loading dashboard...</p>
+      </div>
+    }>
+      <AdminPageInner />
+    </Suspense>
+  );
+}
+
+function AdminPageInner() {
   const { user, org, loading } = useAuth();
   const [view, setView] = useState<AdminView>("inbox");
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -34,6 +48,15 @@ export default function AdminPage() {
   const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
   const [editingSurvey, setEditingSurvey] = useState<any>(null);
   const [viewingSurveyResults, setViewingSurveyResults] = useState<any>(null);
+  const searchParams = useSearchParams();
+  const billingParam = searchParams.get("billing") as "success" | "cancel" | null;
+
+  // Auto-navigate to billing tab after Stripe redirect
+  useEffect(() => {
+    if (billingParam === "success" || billingParam === "cancel") {
+      setView("billing");
+    }
+  }, [billingParam]);
 
   // Loading state
   if (loading) {
@@ -415,6 +438,11 @@ export default function AdminPage() {
             onBack={() => { setViewingSurveyResults(null); setView("surveys"); }}
           />
         ) : null;
+
+      case "billing":
+        return (
+          <BillingSettings orgId={orgId} billingStatus={billingParam} />
+        );
 
       default:
         return null;

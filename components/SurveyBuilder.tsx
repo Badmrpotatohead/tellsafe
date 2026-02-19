@@ -152,7 +152,11 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
     setSaving(true);
 
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Not signed in — please refresh and sign in again");
+      }
+      const token = await user.getIdToken(true);
 
       const method = editSurvey ? "PUT" : "POST";
       const body: any = {
@@ -182,7 +186,8 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to save survey");
+        console.error("[SurveyBuilder] Save failed:", res.status, data);
+        throw new Error(data.error || `Failed to save survey (${res.status})`);
       }
 
       const data = await res.json();

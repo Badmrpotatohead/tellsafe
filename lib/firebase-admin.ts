@@ -10,12 +10,12 @@ import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 
 // Initialize with service account credentials
-// In production: use GOOGLE_APPLICATION_CREDENTIALS env var
-// In Cloud Functions: auto-initialized
 if (getApps().length === 0) {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-    : undefined;
+  const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!rawKey) {
+    console.error("[firebase-admin] FIREBASE_SERVICE_ACCOUNT_KEY is not set — auth will fail");
+  }
+  const serviceAccount = rawKey ? JSON.parse(rawKey) : undefined;
 
   initializeApp(
     serviceAccount
@@ -23,7 +23,7 @@ if (getApps().length === 0) {
           credential: cert(serviceAccount),
           storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
         }
-      : undefined // Auto-detect in Cloud Functions environment
+      : undefined
   );
 }
 

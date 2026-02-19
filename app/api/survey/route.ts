@@ -16,16 +16,33 @@ import { FieldValue } from "firebase-admin/firestore";
 
 // Helper to verify admin
 async function verifyAdmin(request: NextRequest, orgId: string) {
-  console.log("SURVEY API HIT - checking auth"); const authHeader = request.headers.get("Authorization"); console.log("AUTH HEADER:", authHeader ? "present" : "missing");
-  if (!authHeader?.startsWith("Bearer ")) return null;
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    console.error("[survey] No Bearer token in Authorization header");
+    return null;
+  }
 
+  const token = authHeader.split("Bearer ")[1];
+  if (!token || token === "undefined" || token === "null") {
+    console.error("[survey] Token is empty/undefined");
+    return null;
+  }
+
+  let decoded;
   try {
-    const token = authHeader.split("Bearer ")[1];
-    const decoded = await adminAuth.verifyIdToken(token);
-    const adminDoc = await adminCollections.admins(orgId).doc(decoded.uid).get();
-    if (!adminDoc.exists) return null;
-    return decoded.uid;
-  } catch (err) { console.error("AUTH VERIFY FAILED:", err); return null; }
+    decoded = await adminAuth.verifyIdToken(token);
+  } catch (err: any) {
+    console.error("[survey] verifyIdToken failed:", err?.code || err?.message);
+    return null;
+  }
+
+  const adminDoc = await adminCollections.admins(orgId).doc(decoded.uid).get();
+  if (!adminDoc.exists) {
+    console.error(`[survey] No admin doc for uid=${decoded.uid} in org=${orgId}`);
+    return null;
+  }
+
+  return decoded.uid;
 }
 
 // --- CREATE SURVEY ---

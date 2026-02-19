@@ -31,7 +31,10 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
 
   const fetchSurveys = async () => {
     try {
-      console.log("AUTH DEBUG - currentUser:", auth.currentUser?.uid, "email:", auth.currentUser?.email); const token = await auth.currentUser?.getIdToken(); console.log("AUTH DEBUG - token:", token ? token.substring(0,20) + "..." : "NULL"); const res = await fetch(`/api/survey?orgId=${orgId}`, {
+      const user = auth.currentUser;
+      if (!user) return;
+      const token = await user.getIdToken(true);
+      const res = await fetch(`/api/survey?orgId=${orgId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
