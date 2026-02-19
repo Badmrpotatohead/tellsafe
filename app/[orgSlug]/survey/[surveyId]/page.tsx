@@ -1,457 +1,472 @@
 // ============================================================
-// TellSafe — Admin Dashboard Page
+// TellSafe v1.3 — Public Survey Page
 // ============================================================
+// Renders a survey form for community members.
+// URL: /{orgSlug}/survey/{surveyId}
 
 "use client";
 
-import React, { useState } from "react";
-import { useAuth } from "../../components/AuthProvider";
-import { BrandProvider } from "../../components/BrandProvider";
-import AdminSidebar from "../../components/AdminSidebar";
-import DashboardStats from "../../components/DashboardStats";
-import FeedbackList from "../../components/FeedbackList";
-import FeedbackDetail from "../../components/FeedbackDetail";
-import { batchArchiveResolved } from "../../lib/data";
-import RelayThread from "../../components/RelayThread";
-import BrandingSettings from "../../components/BrandingSettings";
-import TemplatesManager from "../../components/TemplatesManager";
-import QRCodeGenerator from "../../components/QRCodeGenerator";
-import AnalyticsDashboard from "../../components/AnalyticsDashboard";
-import SurveyList from "../../components/SurveyList";
-import SurveyBuilder from "../../components/SurveyBuilder";
-import SurveyResults from "../../components/SurveyResults";
-import type { AdminView } from "../../components/AdminSidebar";
+import React, { useState, useEffect, use } from "react";
+import type { Survey, SurveyQuestion, SurveyResponseAnswer } from "../../../../types/survey";
+import type { Organization } from "../../../../types";
 
-const fontStack = "'Outfit', system-ui, sans-serif";
+const fontStack = "'Outfit', 'DM Sans', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
 
-export default function AdminPage() {
-  const { user, org, loading } = useAuth();
-  const [view, setView] = useState<AdminView>("inbox");
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [threadFeedbackId, setThreadFeedbackId] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
-  const [editingSurvey, setEditingSurvey] = useState<any>(null);
-  const [viewingSurveyResults, setViewingSurveyResults] = useState<any>(null);
+interface PageProps {
+  params: Promise<{ orgSlug: string; surveyId: string }>;
+}
 
-  // Loading state
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: fontStack,
-          background: "#f2f0eb",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              border: "3px solid #e8e5de",
-              borderTopColor: "#2d6a6a",
-              borderRadius: "50%",
-              animation: "spin 0.8s linear infinite",
-              margin: "0 auto 16px",
-            }}
-          />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <p style={{ color: "#8a8578", fontSize: 14 }}>Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+export default function SurveyPage({ params }: PageProps) {
+  const { orgSlug, surveyId } = use(params);
 
-  // Auth gate
-  if (!user) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: fontStack,
-          background: "#f2f0eb",
-        }}
-      >
-        <div style={{ textAlign: "center", maxWidth: 360 }}>
-          <a href="/" style={{ textDecoration: "none", color: "inherit" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
-          </a>
-          <h1
-            style={{
-              fontFamily: displayFont,
-              fontSize: 24,
-              fontWeight: 600,
-              marginBottom: 8,
-            }}
-          >
-            Sign in to TellSafe
-          </h1>
-          <p style={{ color: "#8a8578", fontSize: 14, marginBottom: 24 }}>
-            Access your admin dashboard to manage feedback.
-          </p>
-          <a
-            href="/auth/login"
-            style={{
-              display: "inline-block",
-              padding: "12px 32px",
-              background: "#2d6a6a",
-              color: "#fff",
-              borderRadius: 10,
-              textDecoration: "none",
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            Sign In →
-          </a>
-        </div>
-      </div>
-    );
-  }
+  const [survey, setSurvey] = useState<any>(null);
+  const [org, setOrg] = useState<any>(null);
+  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [followUps, setFollowUps] = useState<Record<string, string>>({});
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [orgId, setOrgId] = useState("");
 
-  // No org yet
-  if (!org) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: fontStack,
-          background: "#f2f0eb",
-        }}
-      >
-        <div style={{ textAlign: "center", maxWidth: 400 }}>
-          <a href="/" style={{ textDecoration: "none", color: "inherit" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-          </a>
-          <h1 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8 }}>
-            Welcome to TellSafe!
-          </h1>
-          <p style={{ color: "#8a8578", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
-            Let's set up your organization so your community can start sharing feedback.
-          </p>
-          <a
-            href="/auth/signup"
-            style={{
-              display: "inline-block",
-              padding: "12px 32px",
-              background: "#2d6a6a",
-              color: "#fff",
-              borderRadius: 10,
-              textDecoration: "none",
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            Create Organization →
-          </a>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    loadSurvey();
+  }, [orgSlug, surveyId]);
 
-  const orgId = org.id;
-
-  const handleExportCsv = async () => {
+  const loadSurvey = async () => {
     try {
-      const { getAuth } = await import("firebase/auth");
-      const token = await getAuth().currentUser?.getIdToken();
-      if (!token) return alert("Please sign in to export.");
+      // First get orgId from slug
+      const { getFirestore, doc, getDoc } = await import("firebase/firestore");
+      const { getApps, getApp, initializeApp } = await import("firebase/app");
 
-      const res = await fetch(`/api/export?orgId=${orgId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      if (getApps().length === 0) {
+        initializeApp({
+          apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+          authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+          appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+        });
+      }
+
+      const db = getFirestore(getApp());
+      const slugSnap = await getDoc(doc(db, "slugs", orgSlug));
+      if (!slugSnap.exists()) {
+        setLoadError("Organization not found");
+        setLoading(false);
+        return;
+      }
+
+      const oid = (slugSnap.data() as any).orgId;
+      setOrgId(oid);
+
+      // Fetch survey via API
+      const res = await fetch(`/api/survey/${surveyId}/respond?orgId=${oid}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setLoadError(data.error || "Survey not available");
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      setSurvey(data.survey);
+      setOrg(data.org);
+    } catch (err) {
+      console.error("Load survey error:", err);
+      setLoadError("Failed to load survey");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setAnswer = (questionId: string, value: any) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  const setFollowUp = (questionId: string, text: string) => {
+    setFollowUps((prev) => ({ ...prev, [questionId]: text }));
+  };
+
+  const toggleMultiChoice = (questionId: string, option: string) => {
+    setAnswers((prev) => {
+      const current = (prev[questionId] as string[]) || [];
+      return {
+        ...prev,
+        [questionId]: current.includes(option)
+          ? current.filter((o) => o !== option)
+          : [...current, option],
+      };
+    });
+  };
+
+  const handleSubmit = async () => {
+    // Validate required
+    const missing = survey.questions.filter(
+      (q: SurveyQuestion) => q.required && !answers[q.id] && answers[q.id] !== false
+    );
+    if (missing.length > 0) {
+      setError(`Please answer all required questions (${missing.length} remaining)`);
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      const responseAnswers: SurveyResponseAnswer[] = survey.questions
+        .filter((q: SurveyQuestion) => answers[q.id] !== undefined)
+        .map((q: SurveyQuestion) => ({
+          questionId: q.id,
+          value: answers[q.id],
+          followUpText: followUps[q.id] || undefined,
+        }));
+
+      const res = await fetch(`/api/survey/${surveyId}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          answers: responseAnswers,
+          respondentName: name || null,
+          respondentEmail: email || null,
+        }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        return alert(data.error || "Export failed");
+        throw new Error(data.error || "Failed to submit");
       }
 
-      // Trigger download
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download =
-        res.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") ||
-        "tellsafe-export.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Export failed:", err);
-      alert("Export failed. Please try again.");
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const openThread = (tid: string, fid: string) => {
-    setThreadId(tid);
-    setThreadFeedbackId(fid);
-    setSelectedFeedback(null);
-    setView("inbox");
-  };
+  const primaryColor = org?.primaryColor || "#2d6a6a";
+  const accentColor = org?.accentColor || "#c05d3b";
 
-  const closeThread = () => {
-    setThreadId(null);
-    setThreadFeedbackId(null);
-  };
-
-  // Thread view
-  if (threadId && threadFeedbackId) {
+  // --- Loading ---
+  if (loading) {
     return (
-      <BrandProvider org={org}>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-        <style>{`
-          @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-          @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-        `}</style>
-        <div style={{ display: "flex", minHeight: "100vh" }}>
-          <AdminSidebar
-            orgId={orgId}
-            activeView={view}
-            onNavigate={(v) => { closeThread(); setView(v); }}
-            activeCategory={categoryFilter}
-            onCategoryFilter={setCategoryFilter}
-          />
-          <main style={{ marginLeft: 240, flex: 1 }}>
-            <RelayThread
-              orgId={orgId}
-              threadId={threadId}
-              feedbackId={threadFeedbackId}
-              onBack={closeThread}
-            />
-          </main>
-        </div>
-      </BrandProvider>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: "#f2f0eb" }}>
+        <div style={{ textAlign: "center", color: "#8a8578" }}>Loading survey...</div>
+      </div>
     );
   }
 
-  const renderView = () => {
-    switch (view) {
-      case "inbox":
-      case "needs_reply":
-      case "resolved":
-        return (
-          <div style={{ padding: 28 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 24,
-              }}
-            >
-              <div>
-                <h1 style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600 }}>
-                  {categoryFilter
-                    ? categoryFilter
-                    : view === "inbox"
-                    ? "Feedback Inbox"
-                    : view === "needs_reply"
-                    ? "Needs Reply"
-                    : "Resolved"}
-                </h1>
-                {categoryFilter && (
-                  <button
-                    onClick={() => setCategoryFilter(null)}
-                    style={{
-                      marginTop: 6,
-                      fontSize: 12,
-                      color: "#8a8578",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontFamily: fontStack,
-                      padding: 0,
-                    }}
-                  >
-                    ← Back to all feedback
-                  </button>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {view === "inbox" && (
-                  <button
-                    onClick={async () => {
-                      const count = await batchArchiveResolved(orgId);
-                      if (count === 0) alert("No resolved feedback to archive.");
-                    }}
-                    style={{
-                      padding: "7px 16px",
-                      border: "1.5px solid rgba(26,26,46,0.10)",
-                      borderRadius: 8,
-                      background: "#fff",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      color: "#8a8578",
-                      fontFamily: fontStack,
-                    }}
-                  >
-                    📦 Archive Resolved
-                  </button>
-                )}
-                <button
-                  onClick={handleExportCsv}
-                  style={{
-                    padding: "7px 16px",
-                    border: "1.5px solid rgba(26,26,46,0.10)",
-                    borderRadius: 8,
-                    background: "#fff",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    color: "#1a1a2e",
-                    fontFamily: fontStack,
-                  }}
-                >
-                  📤 Export CSV
-                </button>
-                <button
-                  style={{
-                    padding: "7px 16px",
-                    border: "1.5px solid rgba(26,26,46,0.10)",
-                    borderRadius: 8,
-                    background: "#fff",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    color: "#1a1a2e",
-                    fontFamily: fontStack,
-                  }}
-                >
-                  🔗 Share Feedback Form Link
-                </button>
-              </div>
-            </div>
+  // --- Error ---
+  if (loadError) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: "#f2f0eb" }}>
+        <div style={{ textAlign: "center", maxWidth: 360 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+          <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>{loadError}</h2>
+          <a href={`/${orgSlug}`} style={{ color: primaryColor, fontSize: 14, textDecoration: "none", fontWeight: 600 }}>
+            ← Go to feedback form
+          </a>
+        </div>
+      </div>
+    );
+  }
 
-            {!categoryFilter && <DashboardStats orgId={orgId} />}
-            <FeedbackList
-              orgId={orgId}
-              onOpenThread={openThread}
-              onSelect={setSelectedFeedback}
-              categoryFilter={categoryFilter}
-              showArchived={view === "resolved"}
-            />
-          </div>
-        );
+  // --- Submitted ---
+  if (submitted) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: "#f2f0eb" }}>
+        <div style={{ background: "#fff", borderRadius: 24, padding: 48, maxWidth: 440, textAlign: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+          <h2 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8 }}>
+            Thank you!
+          </h2>
+          <p style={{ color: "#5a5650", fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
+            Your response has been submitted. Your feedback helps make {org?.name || "our community"} better.
+          </p>
+          <a
+            href={`/${orgSlug}`}
+            style={{
+              display: "inline-block",
+              padding: "12px 28px",
+              background: primaryColor,
+              color: "#fff",
+              borderRadius: 10,
+              textDecoration: "none",
+              fontWeight: 700,
+              fontSize: 14,
+            }}
+          >
+            Submit Feedback →
+          </a>
+        </div>
+      </div>
+    );
+  }
 
-      case "branding":
-        return (
-          <div style={{ padding: 36 }}>
-            <BrandingSettings orgId={orgId} />
-          </div>
-        );
-
-      case "templates":
-        return (
-          <div style={{ padding: 36 }}>
-            <TemplatesManager orgId={orgId} />
-          </div>
-        );
-
-      case "team":
-        return (
-          <div style={{ padding: 36, fontFamily: fontStack }}>
-            <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
-              Team Access
-            </h2>
-            <p style={{ color: "#8a8578", fontSize: 14 }}>
-              Invite other organizers to manage feedback. Coming soon.
-            </p>
-          </div>
-        );
-
-      case "qr":
-        return (
-          <div style={{ padding: 36 }}>
-            <QRCodeGenerator orgSlug={org.slug} />
-          </div>
-        );
-
-      case "analytics":
-        return <AnalyticsDashboard orgId={orgId} />;
-
-      case "surveys":
-        return (
-          <SurveyList
-            orgId={orgId}
-            orgSlug={org.slug}
-            onCreateNew={() => { setEditingSurvey(null); setView("survey_build" as any); }}
-            onEdit={(s) => { setEditingSurvey(s); setView("survey_build" as any); }}
-            onViewResults={(s) => { setViewingSurveyResults(s); setView("survey_results" as any); }}
-          />
-        );
-
-      case "survey_build":
-        return (
-          <SurveyBuilder
-            orgId={orgId}
-            editSurvey={editingSurvey}
-            onSaved={() => { setEditingSurvey(null); setView("surveys"); }}
-            onCancel={() => { setEditingSurvey(null); setView("surveys"); }}
-          />
-        );
-
-      case "survey_results":
-        return viewingSurveyResults ? (
-          <SurveyResults
-            orgId={orgId}
-            survey={viewingSurveyResults}
-            onBack={() => { setViewingSurveyResults(null); setView("surveys"); }}
-          />
-        ) : null;
-
-      default:
-        return null;
-    }
-  };
-
+  // --- Survey Form ---
   return (
-    <BrandProvider org={org}>
+    <div style={{ minHeight: "100vh", background: "#f2f0eb", fontFamily: fontStack }}>
       <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&display=swap"
         rel="stylesheet"
       />
-      <style>{`
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-      `}</style>
-      <div style={{ display: "flex", minHeight: "100vh", background: "#f2f0eb" }}>
-        <AdminSidebar
-          orgId={orgId}
-          activeView={view}
-          onNavigate={(v) => { setCategoryFilter(null); setView(v); }}
-          activeCategory={categoryFilter}
-          onCategoryFilter={setCategoryFilter}
-        />
-        <main style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
-          {renderView()}
-          {selectedFeedback && (
-            <FeedbackDetail
-              orgId={orgId}
-              feedback={selectedFeedback}
-              onClose={() => setSelectedFeedback(null)}
-            />
+
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "40px 20px" }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          {org?.logoUrl && (
+            <img src={org.logoUrl} alt="" style={{ height: 40, marginBottom: 12, objectFit: "contain" }} />
           )}
-        </main>
+          <h1 style={{ fontFamily: displayFont, fontSize: 28, fontWeight: 600, marginBottom: 6, color: "#1a1a2e" }}>
+            {survey.title}
+          </h1>
+          {survey.description && (
+            <p style={{ color: "#5a5650", fontSize: 15, lineHeight: 1.5 }}>{survey.description}</p>
+          )}
+          <div style={{ fontSize: 12, color: "#8a8578", marginTop: 8 }}>
+            {org?.name} · {survey.questions.length} questions
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ background: "#fee2e2", color: "#dc2626", padding: "10px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            {error}
+          </div>
+        )}
+
+        {/* Questions */}
+        {survey.questions.map((q: SurveyQuestion, qi: number) => (
+          <div
+            key={q.id}
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 24,
+              marginBottom: 14,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14, lineHeight: 1.4, color: "#1a1a2e" }}>
+              {q.text}
+              {q.required && <span style={{ color: accentColor, marginLeft: 4 }}>*</span>}
+            </div>
+
+            {/* Rating */}
+            {q.type === "rating" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  {q.lowLabel && <span style={{ fontSize: 11, color: "#8a8578" }}>{q.lowLabel}</span>}
+                  {q.highLabel && <span style={{ fontSize: 11, color: "#8a8578" }}>{q.highLabel}</span>}
+                </div>
+                <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                  {Array.from({ length: q.maxRating }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setAnswer(q.id, i + 1)}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
+                        border: `2px solid ${answers[q.id] === i + 1 ? primaryColor : "#e8e5de"}`,
+                        background: answers[q.id] === i + 1 ? primaryColor : "#fff",
+                        color: answers[q.id] === i + 1 ? "#fff" : "#1a1a2e",
+                        fontSize: 18,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                        fontFamily: fontStack,
+                      }}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Multiple Choice */}
+            {q.type === "multiple_choice" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {q.options.map((opt, oi) => {
+                  const isSelected = q.allowMultiple
+                    ? ((answers[q.id] as string[]) || []).includes(opt)
+                    : answers[q.id] === opt;
+
+                  return (
+                    <button
+                      key={oi}
+                      onClick={() =>
+                        q.allowMultiple
+                          ? toggleMultiChoice(q.id, opt)
+                          : setAnswer(q.id, opt)
+                      }
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "12px 16px",
+                        border: `1.5px solid ${isSelected ? primaryColor : "#e8e5de"}`,
+                        borderRadius: 10,
+                        background: isSelected ? `${primaryColor}10` : "#fff",
+                        cursor: "pointer",
+                        fontSize: 14,
+                        textAlign: "left",
+                        fontFamily: fontStack,
+                        color: "#1a1a2e",
+                      }}
+                    >
+                      <span style={{
+                        width: 20, height: 20, borderRadius: q.allowMultiple ? 4 : 10,
+                        border: `2px solid ${isSelected ? primaryColor : "#ccc"}`,
+                        background: isSelected ? primaryColor : "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      }}>
+                        {isSelected ? "✓" : ""}
+                      </span>
+                      {opt}
+                    </button>
+                  );
+                })}
+                {q.allowOther && (
+                  <input
+                    placeholder="Other..."
+                    onChange={(e) => {
+                      if (q.allowMultiple) {
+                        // Remove old "other" and add new
+                        const current = ((answers[q.id] as string[]) || []).filter(
+                          (o) => q.options.includes(o)
+                        );
+                        if (e.target.value) current.push(e.target.value);
+                        setAnswer(q.id, current);
+                      } else {
+                        setAnswer(q.id, e.target.value);
+                      }
+                    }}
+                    style={{
+                      padding: "12px 16px",
+                      border: "1.5px solid #e8e5de",
+                      borderRadius: 10,
+                      fontSize: 14,
+                      fontFamily: fontStack,
+                      outline: "none",
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Yes/No */}
+            {q.type === "yes_no" && (
+              <div>
+                <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                  {[
+                    { val: true, label: "Yes", color: "#059669", bg: "#d1fae5" },
+                    { val: false, label: "No", color: "#dc2626", bg: "#fee2e2" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.label}
+                      onClick={() => setAnswer(q.id, opt.val)}
+                      style={{
+                        flex: 1,
+                        padding: 14,
+                        borderRadius: 10,
+                        border: `2px solid ${answers[q.id] === opt.val ? opt.color : "#e8e5de"}`,
+                        background: answers[q.id] === opt.val ? opt.bg : "#fff",
+                        color: answers[q.id] === opt.val ? opt.color : "#1a1a2e",
+                        fontSize: 16,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: fontStack,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Follow-up */}
+                {answers[q.id] === true && q.followUpOnYes && (
+                  <textarea
+                    value={followUps[q.id] || ""}
+                    onChange={(e) => setFollowUp(q.id, e.target.value)}
+                    placeholder={q.followUpOnYes}
+                    rows={3}
+                    style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                  />
+                )}
+                {answers[q.id] === false && q.followUpOnNo && (
+                  <textarea
+                    value={followUps[q.id] || ""}
+                    onChange={(e) => setFollowUp(q.id, e.target.value)}
+                    placeholder={q.followUpOnNo}
+                    rows={3}
+                    style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Free Text */}
+            {q.type === "free_text" && (
+              <textarea
+                value={answers[q.id] || ""}
+                onChange={(e) => setAnswer(q.id, e.target.value)}
+                placeholder={q.placeholder || "Type your answer..."}
+                rows={4}
+                style={{ width: "100%", padding: "12px 16px", border: "1.5px solid #e8e5de", borderRadius: 12, fontSize: 14, fontFamily: fontStack, outline: "none", resize: "vertical", lineHeight: 1.5, boxSizing: "border-box" }}
+              />
+            )}
+          </div>
+        ))}
+
+        {/* Optional identification */}
+        {survey.allowIdentified && (
+          <div style={{ background: "#fff", borderRadius: 16, padding: 24, marginBottom: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "#8a8578" }}>
+              Optional: Identify yourself
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" style={{ flex: 1, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }} />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email" style={{ flex: 1, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }} />
+            </div>
+          </div>
+        )}
+
+        {/* Submit */}
+        <button
+          onClick={handleSubmit}
+          disabled={submitting}
+          style={{
+            width: "100%",
+            padding: 16,
+            border: "none",
+            borderRadius: 12,
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#fff",
+            background: primaryColor,
+            cursor: submitting ? "not-allowed" : "pointer",
+            opacity: submitting ? 0.6 : 1,
+            fontFamily: fontStack,
+            transition: "all 0.2s",
+          }}
+        >
+          {submitting ? "Submitting..." : "Submit Survey"}
+        </button>
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: "#aaa" }}>
+          Powered by <a href="/" style={{ color: primaryColor, textDecoration: "none" }}>TellSafe</a>
+        </div>
       </div>
-    </BrandProvider>
+    </div>
   );
 }
