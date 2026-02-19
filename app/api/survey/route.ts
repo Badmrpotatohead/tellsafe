@@ -13,7 +13,7 @@ import { FieldValue } from "firebase-admin/firestore";
 
 // Helper to verify admin
 async function verifyAdmin(request: NextRequest, orgId: string) {
-  const authHeader = request.headers.get("Authorization");
+  console.log("SURVEY API HIT - checking auth"); const authHeader = request.headers.get("Authorization"); console.log("AUTH HEADER:", authHeader ? "present" : "missing");
   if (!authHeader?.startsWith("Bearer ")) return null;
 
   try {
@@ -204,4 +204,5 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
 
