@@ -53,19 +53,30 @@ export default function FeedbackForm({ org }: Props) {
     setSubmitting(true);
 
     try {
-      await submitFeedback(org.id, {
-        orgSlug: org.slug,
-        type: privacy,
-        categories: selectedCats,
-        text: feedback.trim(),
-        authorName: privacy === "identified" ? name.trim() : undefined,
-        authorEmail: privacy === "identified" ? email.trim() : undefined,
-        relayEmail: privacy === "relay" ? email.trim() : undefined,
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId: org.id,
+          orgSlug: org.slug,
+          type: privacy,
+          categories: selectedCats,
+          text: feedback.trim(),
+          authorName: privacy === "identified" ? name.trim() : undefined,
+          authorEmail: privacy === "identified" ? email.trim() : undefined,
+          relayEmail: privacy === "relay" ? email.trim() : undefined,
+        }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Submission failed");
+      }
+
       setSubmitted(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Submit failed:", err);
-      setError("Something went wrong. Please try again.");
+      setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }

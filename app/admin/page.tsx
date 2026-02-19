@@ -16,6 +16,7 @@ import RelayThread from "../../components/RelayThread";
 import BrandingSettings from "../../components/BrandingSettings";
 import TemplatesManager from "../../components/TemplatesManager";
 import QRCodeGenerator from "../../components/QRCodeGenerator";
+import AnalyticsDashboard from "../../components/AnalyticsDashboard";
 import type { AdminView } from "../../components/AdminSidebar";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
@@ -156,6 +157,39 @@ export default function AdminPage() {
 
   const orgId = org.id;
 
+  const handleExportCsv = async () => {
+    try {
+      const { getAuth } = await import("firebase/auth");
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) return alert("Please sign in to export.");
+
+      const res = await fetch(`/api/export?orgId=${orgId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return alert(data.error || "Export failed");
+      }
+
+      // Trigger download
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        res.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") ||
+        "tellsafe-export.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Export failed. Please try again.");
+    }
+  };
+
   const openThread = (tid: string, fid: string) => {
     setThreadId(tid);
     setThreadFeedbackId(fid);
@@ -267,6 +301,7 @@ export default function AdminPage() {
                   </button>
                 )}
                 <button
+                  onClick={handleExportCsv}
                   style={{
                     padding: "7px 16px",
                     border: "1.5px solid rgba(26,26,46,0.10)",
@@ -279,7 +314,7 @@ export default function AdminPage() {
                     fontFamily: fontStack,
                   }}
                 >
-                  📤 Export
+                  📤 Export CSV
                 </button>
                 <button
                   style={{
@@ -342,6 +377,9 @@ export default function AdminPage() {
             <QRCodeGenerator orgSlug={org.slug} />
           </div>
         );
+
+      case "analytics":
+        return <AnalyticsDashboard orgId={orgId} />;
 
       default:
         return null;
