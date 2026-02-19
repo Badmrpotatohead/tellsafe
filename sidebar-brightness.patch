@@ -1,0 +1,61 @@
+--- a/components/AdminSidebar.tsx	2026-02-18 17:41:38.000000000 +0000
++++ b/components/AdminSidebar.tsx	2026-02-19 01:35:25.883931122 +0000
+@@ -14,7 +14,7 @@
+ const monoFont = "'JetBrains Mono', monospace";
+ const fontStack = "'Outfit', system-ui, sans-serif";
+ 
+-type AdminView = "inbox" | "needs_reply" | "resolved" | "branding" | "team" | "qr" | "templates";
++type AdminView = "inbox" | "needs_reply" | "resolved" | "branding" | "team" | "qr" | "templates" | "analytics";
+ 
+ interface Props {
+   orgId: string;
+@@ -73,6 +73,7 @@
+       active: activeCategory === c.label,
+     })),
+     { sep: true },
++    { icon: "📊", label: "Analytics", view: "analytics" as AdminView, active: activeView === "analytics" },
+     { icon: "🎨", label: "Branding", view: "branding" as AdminView, active: activeView === "branding" },
+     { icon: "📋", label: "Templates", view: "templates" as AdminView, active: activeView === "templates" },
+     { icon: "👥", label: "Team Access", view: "team" as AdminView, active: activeView === "team" },
+@@ -133,7 +134,7 @@
+         <span
+           style={{
+             fontSize: 11,
+-            color: "rgba(255,255,255,0.35)",
++            color: "rgba(255,255,255,0.55)",
+             fontFamily: monoFont,
+           }}
+         >
+@@ -183,7 +184,7 @@
+                 alignItems: "center",
+                 gap: 10,
+                 padding: "9px 20px",
+-                color: isActive ? "#fff" : "rgba(255,255,255,0.4)",
++                color: isActive ? "#fff" : "rgba(255,255,255,0.75)",
+                 textDecoration: "none",
+                 fontSize: 13,
+                 fontWeight: 500,
+@@ -200,8 +201,8 @@
+                 <span
+                   style={{
+                     marginLeft: "auto",
+-                    background: isActive ? theme.accent : "rgba(255,255,255,0.12)",
+-                    color: isActive ? "#fff" : "rgba(255,255,255,0.6)",
++                    background: isActive ? theme.accent : "rgba(255,255,255,0.15)",
++                    color: isActive ? "#fff" : "rgba(255,255,255,0.8)",
+                     fontSize: 10,
+                     fontWeight: 700,
+                     padding: "2px 7px",
+@@ -222,10 +223,10 @@
+           padding: "12px 20px",
+           borderTop: "1px solid rgba(255,255,255,0.06)",
+           fontSize: 11,
+-          color: "rgba(255,255,255,0.25)",
++          color: "rgba(255,255,255,0.4)",
+         }}
+       >
+-        <a href="/" style={{ color: "rgba(255,255,255,0.25)", textDecoration: "none" }}>
++        <a href="/" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>
+           🛡️ Powered by TellSafe
+         </a>
+       </div>

@@ -134,7 +134,7 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
         <span
           style={{
             fontSize: 11,
-            color: "rgba(255,255,255,0.35)",
+            color: "rgba(255,255,255,0.55)",
             fontFamily: monoFont,
           }}
         >
@@ -184,7 +184,7 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
                 alignItems: "center",
                 gap: 10,
                 padding: "9px 20px",
-                color: isActive ? "#fff" : "rgba(255,255,255,0.4)",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.75)",
                 textDecoration: "none",
                 fontSize: 13,
                 fontWeight: 500,
@@ -201,8 +201,8 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
                 <span
                   style={{
                     marginLeft: "auto",
-                    background: isActive ? theme.accent : "rgba(255,255,255,0.12)",
-                    color: isActive ? "#fff" : "rgba(255,255,255,0.6)",
+                    background: isActive ? theme.accent : "rgba(255,255,255,0.15)",
+                    color: isActive ? "#fff" : "rgba(255,255,255,0.8)",
                     fontSize: 10,
                     fontWeight: 700,
                     padding: "2px 7px",
@@ -223,10 +223,10 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
           padding: "12px 20px",
           borderTop: "1px solid rgba(255,255,255,0.06)",
           fontSize: 11,
-          color: "rgba(255,255,255,0.25)",
+          color: "rgba(255,255,255,0.4)",
         }}
       >
-        <a href="/" style={{ color: "rgba(255,255,255,0.25)", textDecoration: "none" }}>
+        <a href="/" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>
           🛡️ Powered by TellSafe
         </a>
       </div>
