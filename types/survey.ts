@@ -94,7 +94,7 @@ export interface SurveyTemplate {
   description: string;
   icon: string;
   category: "post_event" | "safety" | "community" | "custom";
-  questions: Omit<SurveyQuestion, "id">[];
+  questions: any[];
 }
 
 // --- Pre-built Templates ---
