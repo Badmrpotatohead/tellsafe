@@ -6,6 +6,9 @@
 // PUT: Update survey (status, questions, etc.)
 // DELETE: Delete survey
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb, adminCollections } from "../../../lib/firebase-admin";
 import type { Survey, SurveyQuestion } from "../../../types/survey";
@@ -204,5 +207,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
 
 
