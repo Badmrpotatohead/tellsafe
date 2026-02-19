@@ -9,6 +9,7 @@
 import React, { useState, useEffect } from "react";
 import { useBrand } from "./BrandProvider";
 import type { Survey, SurveyStatus } from "../types/survey";
+import { auth } from "../lib/firebase";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -29,7 +30,7 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
 
   const fetchSurveys = async () => {
     try {
-      const token = await (await import("firebase/auth")).getAuth().currentUser?.getIdToken();
+      const token = await auth.currentUser?.getIdToken();
       const res = await fetch(`/api/survey?orgId=${orgId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -51,7 +52,7 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
   const updateStatus = async (surveyId: string, status: SurveyStatus) => {
     setActionLoading(surveyId);
     try {
-      const token = await (await import("firebase/auth")).getAuth().currentUser?.getIdToken();
+      const token = await auth.currentUser?.getIdToken();
       await fetch("/api/survey", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -69,7 +70,7 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
     if (!confirm("Delete this survey and all its responses? This cannot be undone.")) return;
     setActionLoading(surveyId);
     try {
-      const token = await (await import("firebase/auth")).getAuth().currentUser?.getIdToken();
+      const token = await auth.currentUser?.getIdToken();
       await fetch(`/api/survey?orgId=${orgId}&surveyId=${surveyId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },

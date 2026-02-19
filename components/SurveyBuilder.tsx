@@ -16,6 +16,7 @@ import {
   type QuestionType,
   type SurveyTemplate,
 } from "../types/survey";
+import { auth } from "../lib/firebase";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -151,7 +152,7 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
     setSaving(true);
 
     try {
-      const token = await (await import("firebase/auth")).getAuth().currentUser?.getIdToken();
+      const token = await auth.currentUser?.getIdToken();
 
       const method = editSurvey ? "PUT" : "POST";
       const body: any = {
