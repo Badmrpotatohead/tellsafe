@@ -10,6 +10,7 @@ import React, { useState, useEffect } from "react";
 import { useBrand } from "./BrandProvider";
 import type { Survey, SurveyStatus } from "../types/survey";
 import { auth } from "../lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -46,7 +47,10 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
   };
 
   useEffect(() => {
-    fetchSurveys();
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) fetchSurveys();
+    });
+    return () => unsub();
   }, [orgId]);
 
   const updateStatus = async (surveyId: string, status: SurveyStatus) => {
@@ -266,3 +270,4 @@ function actionBtnStyle(theme: any, bg?: string, color?: string): React.CSSPrope
     fontFamily: "'Outfit', system-ui, sans-serif",
   };
 }
+
