@@ -95,9 +95,9 @@ export async function POST(request: NextRequest) {
       surveyId: ref.id,
       survey: { id: ref.id, ...surveyData },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Create survey error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error", detail: err?.message || String(err) }, { status: 500 });
   }
 }
 
@@ -127,9 +127,9 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ surveys });
-  } catch (err) {
+  } catch (err: any) {
     console.error("List surveys error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error", detail: err?.message || String(err) }, { status: 500 });
   }
 }
 

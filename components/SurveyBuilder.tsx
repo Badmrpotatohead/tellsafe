@@ -187,7 +187,8 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         console.error("[SurveyBuilder] Save failed:", res.status, data);
-        throw new Error(data.error || `Failed to save survey (${res.status})`);
+        const detail = data.detail || data.reason || "";
+        throw new Error(`${data.error || "Failed to save survey"} (${res.status})${detail ? ": " + detail : ""}`);
       }
 
       const data = await res.json();
