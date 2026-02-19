@@ -9,6 +9,7 @@ import React, { useState, useEffect } from "react";
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [activeDemo, setActiveDemo] = useState<"submit" | "admin" | "relay">("submit");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -16,13 +17,36 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Close hamburger on resize to desktop
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 768) setMenuOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Close hamburger on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Body scroll lock when menu open
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [menuOpen]);
+
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", color: "#f7f5f0" }}>
-      <link
-        href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet"
-      />
       <style>{`
+        html { scroll-behavior: smooth; }
+        [id] { scroll-margin-top: 80px; }
+
         @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         @keyframes glowPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
@@ -41,10 +65,82 @@ export default function LandingPage() {
         .demo-tab { transition: all 0.2s ease; cursor: pointer; }
         .demo-tab:hover { background: rgba(247,245,240,0.08); }
         a { text-decoration: none; color: inherit; }
+
+        /* Hamburger button */
+        .landing-hamburger { display: none; }
+
+        /* Mobile overlay */
+        .landing-mobile-menu {
+          display: none;
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          z-index: 49;
+          background: rgba(15,17,23,0.97);
+          backdrop-filter: blur(20px);
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 32px;
+        }
+        .landing-mobile-menu.open { display: flex; }
+        .landing-mobile-menu a {
+          font-size: 22px;
+          font-weight: 600;
+          color: rgba(247,245,240,0.7);
+          transition: color 0.2s;
+        }
+        .landing-mobile-menu a:hover { color: #a3c9c9; }
+
+        /* ======== TABLET (768–1023) ======== */
+        @media (max-width: 1023px) {
+          .landing-grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
+          .landing-hero-h1 { font-size: 48px !important; }
+          .landing-section-h2 { font-size: 32px !important; }
+          .landing-hero-sub { font-size: 16px !important; }
+        }
+
+        /* ======== MOBILE (≤767) ======== */
+        @media (max-width: 767px) {
+          .landing-hamburger {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px; height: 40px;
+            border: none; background: transparent;
+            color: #f7f5f0; font-size: 26px;
+            cursor: pointer;
+          }
+          .landing-nav-links { display: none !important; }
+          .landing-nav-inner { padding: 0 16px !important; }
+          .landing-hero-h1 { font-size: 36px !important; }
+          .landing-hero-sub { font-size: 15px !important; }
+          .landing-section-h2 { font-size: 28px !important; }
+          .landing-hero-ctas {
+            flex-direction: column !important;
+            align-items: center !important;
+          }
+          .landing-hero-ctas a { width: 100%; max-width: 320px; text-align: center; }
+          .landing-grid-3 { grid-template-columns: 1fr !important; }
+          .landing-section { padding: 60px 0 !important; }
+          .landing-hero { padding-top: 120px !important; padding-bottom: 60px !important; }
+          .landing-demo-tabs {
+            max-width: 100% !important;
+            flex-direction: column !important;
+            border-radius: 16px !important;
+          }
+          .landing-demo-tabs button { border-radius: 12px !important; }
+          .landing-demo-card { padding: 24px !important; }
+          .landing-footer-inner {
+            flex-direction: column !important;
+            gap: 12px !important;
+            text-align: center !important;
+          }
+          .landing-admin-stats { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       {/* ====== DARK NAV ====== */}
       <nav
+        aria-label="Main navigation"
         style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
           padding: scrolled ? "10px 0" : "18px 0",
@@ -54,12 +150,12 @@ export default function LandingPage() {
           transition: "all 0.3s ease",
         }}
       >
-        <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="landing-nav-inner" style={{ maxWidth: 1120, margin: "0 auto", padding: "0 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 24 }}>🛡️</span>
             <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, color: "#a3c9c9" }}>TellSafe</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+          <div className="landing-nav-links" style={{ display: "flex", alignItems: "center", gap: 28 }}>
             <a href="#features" style={{ fontSize: 14, fontWeight: 500, color: "rgba(247,245,240,0.55)" }}>Features</a>
             <a href="#demo" style={{ fontSize: 14, fontWeight: 500, color: "rgba(247,245,240,0.55)" }}>Demo</a>
             <a href="#pricing" style={{ fontSize: 14, fontWeight: 500, color: "rgba(247,245,240,0.55)" }}>Pricing</a>
@@ -69,11 +165,36 @@ export default function LandingPage() {
               padding: "9px 22px", borderRadius: 8,
             }}>Get Started Free</a>
           </div>
+          <button
+            className="landing-hamburger"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            {menuOpen ? "✕" : "☰"}
+          </button>
         </div>
       </nav>
 
+      {/* ====== MOBILE MENU OVERLAY ====== */}
+      <div className={`landing-mobile-menu${menuOpen ? " open" : ""}`}>
+        <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+        <a href="#demo" onClick={() => setMenuOpen(false)}>Demo</a>
+        <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+        <a href="/auth/login" onClick={() => setMenuOpen(false)} style={{ color: "#a3c9c9" }}>Log In</a>
+        <a
+          href="/auth/signup"
+          onClick={() => setMenuOpen(false)}
+          style={{
+            background: "#2d6a6a", color: "#fff",
+            padding: "14px 40px", borderRadius: 12,
+            fontWeight: 700, fontSize: 16,
+          }}
+        >Get Started Free</a>
+      </div>
+
       {/* ====== DARK HERO ====== */}
       <section
+        className="landing-hero"
         style={{
           paddingTop: 160, paddingBottom: 100, textAlign: "center",
           position: "relative", overflow: "hidden",
@@ -102,7 +223,7 @@ export default function LandingPage() {
           </div>
 
           {/* Headline */}
-          <h1 className="fade-up-1" style={{
+          <h1 className="fade-up-1 landing-hero-h1" style={{
             fontFamily: "'DM Serif Display', serif",
             fontSize: 62, fontWeight: 400, lineHeight: 1.1,
             marginBottom: 24, color: "#f7f5f0",
@@ -119,7 +240,7 @@ export default function LandingPage() {
           </h1>
 
           {/* Subtitle */}
-          <p className="fade-up-2" style={{
+          <p className="fade-up-2 landing-hero-sub" style={{
             fontSize: 18, lineHeight: 1.7, color: "rgba(247,245,240,0.5)",
             maxWidth: 520, margin: "0 auto 40px",
           }}>
@@ -127,7 +248,7 @@ export default function LandingPage() {
           </p>
 
           {/* CTAs */}
-          <div className="fade-up-3" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+          <div className="fade-up-3 landing-hero-ctas" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
             <a href="#demo" className="cta-btn" style={{
               display: "inline-block", padding: "16px 36px",
               background: "#2d6a6a", color: "#fff", borderRadius: 12,
@@ -144,12 +265,12 @@ export default function LandingPage() {
       </section>
 
       {/* ====== 6 DARK FEATURE CARDS ====== */}
-      <section id="features" style={{
+      <section id="features" className="landing-section" style={{
         padding: "80px 0 100px",
         background: "linear-gradient(180deg, #1a1e28 0%, #151820 100%)",
       }}>
         <div style={{ maxWidth: 1060, margin: "0 auto", padding: "0 28px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18 }}>
+          <div className="landing-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18 }}>
             {[
               { icon: "🔐", title: "Three Privacy Modes", desc: "Identified, fully anonymous, or anonymous with relay — your members choose their comfort level.", color: "#e8a68c" },
               { icon: "🔀", title: "Anonymous Relay", desc: "Respond to anonymous feedback via encrypted email relay. Two-way conversation, zero identity exposure.", color: "#a3c9c9" },
@@ -185,10 +306,10 @@ export default function LandingPage() {
       <div style={{ height: 120, background: "linear-gradient(180deg, #151820, #f7f5f0)" }} />
 
       {/* ====== THREE MODES (LIGHT) ====== */}
-      <section style={{ padding: "60px 0 100px", background: "#f7f5f0", color: "#1a1a2e" }}>
+      <section className="landing-section" style={{ padding: "60px 0 100px", background: "#f7f5f0", color: "#1a1a2e" }}>
         <div style={{ maxWidth: 1060, margin: "0 auto", padding: "0 28px" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12, color: "#1a1a2e" }}>
+            <h2 className="landing-section-h2" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12, color: "#1a1a2e" }}>
               Three ways to speak up
             </h2>
             <p style={{ fontSize: 17, color: "#8a8578", maxWidth: 460, margin: "0 auto" }}>
@@ -196,7 +317,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 22 }}>
+          <div className="landing-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 22 }}>
             {[
               { icon: "👋", title: "Identified", desc: "Name and email attached. Great for praise, suggestions, and follow-ups.", color: "#c05d3b", bg: "rgba(192,93,59,0.08)" },
               { icon: "👤", title: "Anonymous", desc: "Completely private. No email, no identity, no way to trace it back.", color: "#2d6a6a", bg: "rgba(45,106,106,0.08)" },
@@ -229,21 +350,21 @@ export default function LandingPage() {
       </section>
 
       {/* ====== INTERACTIVE DEMO ====== */}
-      <section id="demo" style={{
+      <section id="demo" className="landing-section" style={{
         padding: "80px 0 100px",
         background: "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(45,106,106,0.08), transparent), #ede9e0",
         color: "#1a1a2e",
       }}>
         <div style={{ maxWidth: 1060, margin: "0 auto", padding: "0 28px" }}>
           <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12 }}>
+            <h2 className="landing-section-h2" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12 }}>
               See it in action
             </h2>
-            <p style={{ fontSize: 17, color: "#8a8578" }}>Here's what your community and dashboard will look like.</p>
+            <p style={{ fontSize: 17, color: "#8a8578" }}>Here&apos;s what your community and dashboard will look like.</p>
           </div>
 
           {/* Demo tabs */}
-          <div style={{
+          <div className="landing-demo-tabs" style={{
             display: "flex", justifyContent: "center", gap: 8, marginBottom: 28,
             background: "#1a1a2e", borderRadius: 100, padding: 4, maxWidth: 480, margin: "0 auto 28px",
           }}>
@@ -262,7 +383,7 @@ export default function LandingPage() {
           </div>
 
           {/* Demo card */}
-          <div style={{
+          <div className="landing-demo-card" style={{
             background: "#fff", borderRadius: 20, padding: 40,
             boxShadow: "0 8px 40px rgba(26,26,46,0.08)",
             maxWidth: 680, margin: "0 auto", position: "relative", overflow: "hidden",
@@ -312,7 +433,7 @@ export default function LandingPage() {
                   background: "#f7f5f0", borderRadius: 10, padding: "14px 16px",
                   border: "1.5px solid rgba(26,26,46,0.08)", fontSize: 14, color: "#8a8578",
                   minHeight: 80, marginBottom: 16,
-                }}>What's on your mind? The more detail you share, the better we can respond...</div>
+                }}>What&apos;s on your mind? The more detail you share, the better we can respond...</div>
                 <div style={{ padding: 14, borderRadius: 12, background: "#c05d3b", color: "#fff", fontWeight: 700, fontSize: 15, textAlign: "center" }}>Send Feedback</div>
               </div>
             )}
@@ -320,7 +441,7 @@ export default function LandingPage() {
             {activeDemo === "admin" && (
               <div>
                 <h3 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, marginBottom: 20 }}>Feedback Inbox</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
+                <div className="landing-admin-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
                   {[
                     { label: "Total", value: "47", sub: "+8 this week", color: "#2d6a6a" },
                     { label: "Needs Reply", value: "3", sub: "2 relay", color: "#c05d3b" },
@@ -399,10 +520,10 @@ export default function LandingPage() {
       </section>
 
       {/* ====== HOW IT WORKS ====== */}
-      <section style={{ padding: "100px 0", background: "#f7f5f0", color: "#1a1a2e" }}>
+      <section className="landing-section" style={{ padding: "100px 0", background: "#f7f5f0", color: "#1a1a2e" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 28px" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12 }}>Live in under 2 minutes</h2>
+            <h2 className="landing-section-h2" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12 }}>Live in under 2 minutes</h2>
             <p style={{ fontSize: 17, color: "#8a8578" }}>No coding, no complicated setup.</p>
           </div>
           {[
@@ -431,13 +552,13 @@ export default function LandingPage() {
       </section>
 
       {/* ====== PRICING ====== */}
-      <section id="pricing" style={{ padding: "100px 0", background: "#ede9e0", color: "#1a1a2e" }}>
+      <section id="pricing" className="landing-section" style={{ padding: "100px 0", background: "#ede9e0", color: "#1a1a2e" }}>
         <div style={{ maxWidth: 980, margin: "0 auto", padding: "0 28px" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12 }}>Simple, honest pricing</h2>
+            <h2 className="landing-section-h2" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12 }}>Simple, honest pricing</h2>
             <p style={{ fontSize: 17, color: "#8a8578" }}>Start free. Upgrade when your community grows.</p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+          <div className="landing-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
             {[
               { name: "Free", price: "$0", period: "forever", desc: "Try it out", color: "#8a8578",
                 features: ["1 organization", "1 admin", "25 submissions/month", "Identified & anonymous", "QR code generator"],
@@ -491,7 +612,7 @@ export default function LandingPage() {
       </section>
 
       {/* ====== FINAL CTA ====== */}
-      <section style={{
+      <section className="landing-section" style={{
         padding: "100px 0", textAlign: "center",
         background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(45,106,106,0.08), transparent), #f7f5f0",
         color: "#1a1a2e",
@@ -503,7 +624,7 @@ export default function LandingPage() {
             borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 28, boxShadow: "0 4px 20px rgba(45,106,106,0.25)",
           }}>🛡️</div>
-          <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 34, fontWeight: 400, marginBottom: 14 }}>
+          <h2 className="landing-section-h2" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 34, fontWeight: 400, marginBottom: 14 }}>
             Your community deserves<br />to be heard
           </h2>
           <p style={{ fontSize: 16, lineHeight: 1.7, color: "#8a8578", marginBottom: 32 }}>
@@ -519,15 +640,15 @@ export default function LandingPage() {
 
       {/* ====== FOOTER ====== */}
       <footer style={{ padding: "36px 0", background: "#ede9e0", borderTop: "1px solid rgba(26,26,46,0.08)" }}>
-        <div style={{ maxWidth: 1060, margin: "0 auto", padding: "0 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="landing-footer-inner" style={{ maxWidth: 1060, margin: "0 auto", padding: "0 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 18 }}>🛡️</span>
             <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: "#2d6a6a" }}>TellSafe</span>
             <span style={{ fontSize: 12, color: "#8a8578", marginLeft: 8 }}>© 2026</span>
           </div>
           <div style={{ display: "flex", gap: 24, fontSize: 13, color: "#8a8578" }}>
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
             <a href="mailto:hello@tellsafe.app">Contact</a>
           </div>
         </div>

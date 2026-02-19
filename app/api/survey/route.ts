@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     const authResult = await verifyAdmin(request, orgId);
     if ("error" in authResult) {
-      return NextResponse.json({ error: "Unauthorized", reason: authResult.reason }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const uid = authResult.uid;
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     console.error("Create survey error:", err);
-    return NextResponse.json({ error: "Internal server error", detail: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
 
     const authResult = await verifyAdmin(request, orgId);
     if ("error" in authResult) {
-      return NextResponse.json({ error: "Unauthorized", reason: authResult.reason }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const snap = await adminDb
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ surveys });
   } catch (err: any) {
     console.error("List surveys error:", err);
-    return NextResponse.json({ error: "Internal server error", detail: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -145,7 +145,7 @@ export async function PUT(request: NextRequest) {
 
     const authResult = await verifyAdmin(request, orgId);
     if ("error" in authResult) {
-      return NextResponse.json({ error: "Unauthorized", reason: authResult.reason }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const allowedFields = [
@@ -192,7 +192,7 @@ export async function DELETE(request: NextRequest) {
 
     const authResult = await verifyAdmin(request, orgId);
     if ("error" in authResult) {
-      return NextResponse.json({ error: "Unauthorized", reason: authResult.reason }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Delete survey and all responses

@@ -1,5 +1,5 @@
 // ============================================================
-// TellSafe — SendGrid Email Service
+// TellSafe — Email Service (Resend)
 // ============================================================
 // Handles all outbound email:
 // 1. Relay confirmation to member after submission
@@ -7,12 +7,18 @@
 // 3. New feedback notification to admins
 // 4. (Future) Weekly digest emails
 
-import sgMail from "@sendgrid/mail";
+import { Resend } from "resend";
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+// Lazy-init to avoid crashing during build when env var is absent
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
-const FROM_EMAIL = "noreply@tellsafe.app";
-const FROM_NAME = "TellSafe";
+const FROM_EMAIL = "TellSafe <noreply@tellsafe.com>";
 
 // ============================================================
 // Relay: Confirmation to member after submission
@@ -24,9 +30,9 @@ export async function sendRelayConfirmation(params: {
 }) {
   const { memberEmail, orgName, threadId } = params;
 
-  await sgMail.send({
+  await getResend().emails.send({
+    from: FROM_EMAIL,
     to: memberEmail,
-    from: { email: FROM_EMAIL, name: FROM_NAME },
     subject: `Your anonymous feedback was received — ${orgName}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
@@ -38,16 +44,16 @@ export async function sendRelayConfirmation(params: {
             Your feedback was delivered
           </h2>
           <p style="font-size: 15px; color: #5a5650; line-height: 1.6; margin: 0 0 20px;">
-            The organizers at <strong>${orgName}</strong> have received your anonymous feedback. 
+            The organizers at <strong>${orgName}</strong> have received your anonymous feedback.
             If they respond, you'll receive their reply at this email address.
           </p>
           <div style="background: rgba(107, 91, 138, 0.08); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #6b5b8a; line-height: 1.5;">
-            🔒 <strong>Your identity is protected.</strong> The organizers cannot see your 
+            🔒 <strong>Your identity is protected.</strong> The organizers cannot see your
             email address. All replies are routed through TellSafe's encrypted relay.
           </div>
         </div>
         <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: 20px;">
-          Powered by <a href="https://tellsafe.app" style="color: #2d6a6a;">TellSafe</a> — 
+          Powered by <a href="https://tellsafe.vercel.app" style="color: #2d6a6a;">TellSafe</a> —
           Anonymous feedback for communities
         </p>
       </div>
@@ -67,13 +73,10 @@ export async function sendRelayReply(params: {
 }) {
   const { memberEmail, orgName, threadId, adminName, replyText } = params;
 
-  // The reply-to address encodes the threadId for inbound parsing
-  const replyToAddress = `relay+${threadId}@tellsafe.app`;
-
-  await sgMail.send({
+  await getResend().emails.send({
+    from: FROM_EMAIL,
     to: memberEmail,
-    from: { email: FROM_EMAIL, name: `${orgName} via TellSafe` },
-    replyTo: { email: replyToAddress, name: orgName },
+    replyTo: `noreply@tellsafe.com`,
     subject: `Re: Your anonymous feedback — ${orgName}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
@@ -88,15 +91,15 @@ export async function sendRelayReply(params: {
             <p style="font-size: 15px; color: #1a1a2e; line-height: 1.65; margin: 0; white-space: pre-wrap;">${replyText}</p>
           </div>
           <p style="font-size: 14px; color: #5a5650; line-height: 1.5; margin: 0 0 16px;">
-            <strong>Want to reply?</strong> Simply reply to this email. Your response will 
-            be delivered anonymously — they still won't see your email address.
+            <strong>Want to continue the conversation?</strong> Log in to TellSafe to reply
+            — your identity stays protected throughout.
           </p>
           <div style="background: rgba(107, 91, 138, 0.08); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #6b5b8a; line-height: 1.5;">
             🔒 Your identity remains protected throughout this conversation.
           </div>
         </div>
         <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: 20px;">
-          Powered by <a href="https://tellsafe.app" style="color: #2d6a6a;">TellSafe</a>
+          Powered by <a href="https://tellsafe.vercel.app" style="color: #2d6a6a;">TellSafe</a>
         </p>
       </div>
     `,
@@ -122,9 +125,10 @@ export async function sendNewFeedbackNotification(params: {
     relay: "🔀 Anonymous Relay",
   };
 
-  await sgMail.sendMultiple({
+  // Resend supports multiple recipients in the `to` field
+  await getResend().emails.send({
+    from: FROM_EMAIL,
     to: adminEmails,
-    from: { email: FROM_EMAIL, name: FROM_NAME },
     subject: `New ${feedbackType} feedback — ${orgName}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
@@ -148,7 +152,7 @@ export async function sendNewFeedbackNotification(params: {
           </a>
         </div>
         <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: 20px;">
-          Powered by <a href="https://tellsafe.app" style="color: #2d6a6a;">TellSafe</a>
+          Powered by <a href="https://tellsafe.vercel.app" style="color: #2d6a6a;">TellSafe</a>
         </p>
       </div>
     `,

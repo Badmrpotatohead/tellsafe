@@ -16,7 +16,7 @@ import {
   sendRelayConfirmation,
   sendRelayReply,
   sendNewFeedbackNotification,
-} from "../lib/sendgrid";
+} from "../lib/email";
 import type {
   Organization,
   Feedback,

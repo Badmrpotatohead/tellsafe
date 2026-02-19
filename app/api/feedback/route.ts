@@ -4,7 +4,7 @@
 // Handles feedback submission server-side so we can:
 // 1. Run sentiment analysis (Claude API — server-only)
 // 2. Encrypt relay emails (server-only)
-// 3. Send email notifications to admins (SendGrid — server-only)
+// 3. Send email notifications to admins (Resend — server-only)
 // 4. Enforce submission limits
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,7 +14,7 @@ import { encryptEmail } from "../../../lib/encryption";
 import {
   sendRelayConfirmation,
   sendNewFeedbackNotification,
-} from "../../../lib/sendgrid";
+} from "../../../lib/email";
 import type {
   Organization,
   Plan,
