@@ -151,7 +151,7 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
     setSaving(true);
 
     try {
-      const { auth } = await import("../../lib/firebase"); const token = await auth.currentUser?.getIdToken();
+      const { auth } = await import("../lib/firebase"); const token = await auth.currentUser?.getIdToken();
 
       const method = editSurvey ? "PUT" : "POST";
       const body: any = {
