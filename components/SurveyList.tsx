@@ -31,8 +31,7 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
 
   const fetchSurveys = async () => {
     try {
-      const token = await auth.currentUser?.getIdToken();
-      const res = await fetch(`/api/survey?orgId=${orgId}`, {
+      console.log("AUTH DEBUG - currentUser:", auth.currentUser?.uid, "email:", auth.currentUser?.email); const token = await auth.currentUser?.getIdToken(); console.log("AUTH DEBUG - token:", token ? token.substring(0,20) + "..." : "NULL"); const res = await fetch(`/api/survey?orgId=${orgId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -270,4 +269,5 @@ function actionBtnStyle(theme: any, bg?: string, color?: string): React.CSSPrope
     fontFamily: "'Outfit', system-ui, sans-serif",
   };
 }
+
 
