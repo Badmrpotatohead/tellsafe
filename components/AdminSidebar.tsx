@@ -14,7 +14,7 @@ const displayFont = "'Fraunces', Georgia, serif";
 const monoFont = "'JetBrains Mono', monospace";
 const fontStack = "'Outfit', system-ui, sans-serif";
 
-type AdminView = "inbox" | "needs_reply" | "resolved" | "branding" | "team" | "qr" | "templates" | "analytics";
+type AdminView = "inbox" | "needs_reply" | "resolved" | "branding" | "team" | "qr" | "templates" | "analytics" | "surveys" | "survey_build" | "survey_results";
 
 interface Props {
   orgId: string;
@@ -74,6 +74,7 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
     })),
     { sep: true },
     { icon: "📊", label: "Analytics", view: "analytics" as AdminView, active: activeView === "analytics" },
+    { icon: "📋", label: "Surveys", view: "surveys" as AdminView, active: activeView === "surveys" || activeView === "survey_build" || activeView === "survey_results" },
     { icon: "🎨", label: "Branding", view: "branding" as AdminView, active: activeView === "branding" },
     { icon: "📋", label: "Templates", view: "templates" as AdminView, active: activeView === "templates" },
     { icon: "👥", label: "Team Access", view: "team" as AdminView, active: activeView === "team" },
