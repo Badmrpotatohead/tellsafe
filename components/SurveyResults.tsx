@@ -200,7 +200,7 @@ function MultipleChoiceResults({ question, answers, theme }: { question: any; an
 
   answers.forEach((a) => {
     const vals = Array.isArray(a.value) ? a.value : [a.value];
-    vals.forEach((v: string) => {
+    vals.forEach((v: any) => {
       if (counts[v] !== undefined) counts[v]++;
       else counts["Other"] = (counts["Other"] || 0) + 1;
     });
