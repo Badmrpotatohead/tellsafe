@@ -22,9 +22,7 @@ async function verifyAdmin(request: NextRequest, orgId: string) {
     const adminDoc = await adminCollections.admins(orgId).doc(decoded.uid).get();
     if (!adminDoc.exists) return null;
     return decoded.uid;
-  } catch {
-    return null;
-  }
+  } catch (err) { console.error("AUTH VERIFY FAILED:", err); return null; }
 }
 
 // --- CREATE SURVEY ---
@@ -206,3 +204,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
