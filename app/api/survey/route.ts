@@ -14,35 +14,31 @@ import { adminAuth, adminDb, adminCollections } from "../../../lib/firebase-admi
 import type { Survey, SurveyQuestion } from "../../../types/survey";
 import { FieldValue } from "firebase-admin/firestore";
 
-// Helper to verify admin
-async function verifyAdmin(request: NextRequest, orgId: string) {
+// Helper to verify admin — returns { uid } on success, { error, reason } on failure
+async function verifyAdmin(request: NextRequest, orgId: string): Promise<{ uid: string } | { error: true; reason: string }> {
   const authHeader = request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    console.error("[survey] No Bearer token in Authorization header");
-    return null;
+    return { error: true, reason: "no_bearer_token" };
   }
 
   const token = authHeader.split("Bearer ")[1];
   if (!token || token === "undefined" || token === "null") {
-    console.error("[survey] Token is empty/undefined");
-    return null;
+    return { error: true, reason: "token_empty_or_undefined" };
   }
 
   let decoded;
   try {
     decoded = await adminAuth.verifyIdToken(token);
   } catch (err: any) {
-    console.error("[survey] verifyIdToken failed:", err?.code || err?.message);
-    return null;
+    return { error: true, reason: `verifyIdToken_failed: ${err?.code || err?.message}` };
   }
 
   const adminDoc = await adminCollections.admins(orgId).doc(decoded.uid).get();
   if (!adminDoc.exists) {
-    console.error(`[survey] No admin doc for uid=${decoded.uid} in org=${orgId}`);
-    return null;
+    return { error: true, reason: `no_admin_doc: uid=${decoded.uid} org=${orgId}` };
   }
 
-  return decoded.uid;
+  return { uid: decoded.uid };
 }
 
 // --- CREATE SURVEY ---
@@ -55,10 +51,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const uid = await verifyAdmin(request, orgId);
-    if (!uid) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await verifyAdmin(request, orgId);
+    if ("error" in authResult) {
+      return NextResponse.json({ error: "Unauthorized", reason: authResult.reason }, { status: 401 });
     }
+    const uid = authResult.uid;
 
     const now = new Date().toISOString();
 
@@ -112,9 +109,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "orgId required" }, { status: 400 });
     }
 
-    const uid = await verifyAdmin(request, orgId);
-    if (!uid) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await verifyAdmin(request, orgId);
+    if ("error" in authResult) {
+      return NextResponse.json({ error: "Unauthorized", reason: authResult.reason }, { status: 401 });
     }
 
     const snap = await adminDb
@@ -146,9 +143,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "orgId and surveyId required" }, { status: 400 });
     }
 
-    const uid = await verifyAdmin(request, orgId);
-    if (!uid) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await verifyAdmin(request, orgId);
+    if ("error" in authResult) {
+      return NextResponse.json({ error: "Unauthorized", reason: authResult.reason }, { status: 401 });
     }
 
     const allowedFields = [
@@ -193,9 +190,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "orgId and surveyId required" }, { status: 400 });
     }
 
-    const uid = await verifyAdmin(request, orgId);
-    if (!uid) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await verifyAdmin(request, orgId);
+    if ("error" in authResult) {
+      return NextResponse.json({ error: "Unauthorized", reason: authResult.reason }, { status: 401 });
     }
 
     // Delete survey and all responses
