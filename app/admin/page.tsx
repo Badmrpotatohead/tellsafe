@@ -22,6 +22,7 @@ import SurveyList from "../../components/SurveyList";
 import SurveyBuilder from "../../components/SurveyBuilder";
 import SurveyResults from "../../components/SurveyResults";
 import BillingSettings from "../../components/BillingSettings";
+import TeamAccess from "../../components/TeamAccess";
 import type { AdminView } from "../../components/AdminSidebar";
 import { PLAN_LIMITS } from "../../types";
 
@@ -482,6 +483,7 @@ function AdminPageInner() {
               onSelect={setSelectedFeedback}
               categoryFilter={categoryFilter}
               showArchived={view === "resolved"}
+              viewFilter={view as "inbox" | "needs_reply" | "resolved"}
             />
             {view === "resolved" && (
               <div style={{ textAlign: "center", padding: "24px 0 8px" }}>
@@ -525,13 +527,8 @@ function AdminPageInner() {
 
       case "team":
         return (
-          <div style={{ padding: 36, fontFamily: fontStack }}>
-            <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
-              Team Access
-            </h2>
-            <p style={{ color: "#8a8578", fontSize: 14 }}>
-              Invite other organizers to manage feedback. Coming soon.
-            </p>
+          <div style={{ padding: 36 }}>
+            <TeamAccess orgId={orgId} />
           </div>
         );
 

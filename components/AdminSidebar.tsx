@@ -113,14 +113,14 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
           transition: "transform 0.25s ease",
         }}
       >
-      {/* Org header — links home */}
-      <a
-        href="/"
+      {/* Org header */}
+      <div
         style={{
-          display: "block",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
           padding: "22px 20px 18px",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
-          textDecoration: "none",
           color: "#f8f6f1",
         }}
       >
@@ -129,33 +129,37 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
             src={logoUrl}
             alt=""
             style={{
-              height: 32,
-              maxWidth: 140,
+              height: 36,
+              width: 36,
               objectFit: "contain",
-              marginBottom: 6,
+              borderRadius: 8,
+              flexShrink: 0,
             }}
           />
         ) : null}
-        <h2
-          style={{
-            fontFamily: displayFont,
-            fontSize: 18,
-            fontWeight: 600,
-            lineHeight: 1.2,
-          }}
-        >
-          {orgName}
-        </h2>
-        <span
-          style={{
-            fontSize: 11,
-            color: "rgba(255,255,255,0.55)",
-            fontFamily: monoFont,
-          }}
-        >
-          Admin Console
-        </span>
-      </a>
+        <div>
+          <h2
+            style={{
+              fontFamily: displayFont,
+              fontSize: 18,
+              fontWeight: 600,
+              lineHeight: 1.2,
+              margin: 0,
+            }}
+          >
+            {orgName}
+          </h2>
+          <span
+            style={{
+              fontSize: 11,
+              color: "rgba(255,255,255,0.55)",
+              fontFamily: monoFont,
+            }}
+          >
+            Admin Console
+          </span>
+        </div>
+      </div>
 
       {/* Navigation */}
       <nav style={{ padding: "10px 0", flex: 1 }}>

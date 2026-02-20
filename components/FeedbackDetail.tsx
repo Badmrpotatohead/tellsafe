@@ -12,8 +12,11 @@ import {
   getOrCreateThread,
   sendAdminReply,
   subscribeThreadMessages,
+  getTemplates,
+  trackTemplateUsage,
 } from "../lib/data";
-import type { Feedback, FeedbackStatus, ThreadMessage } from "../types";
+import { PLAN_LIMITS } from "../types";
+import type { Feedback, FeedbackStatus, ThreadMessage, ResponseTemplate } from "../types";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 
@@ -25,14 +28,25 @@ interface Props {
 
 export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
   const { theme } = useBrand();
-  const { user } = useAuth();
+  const { user, org } = useAuth();
   const [status, setStatus] = useState<FeedbackStatus>(f.status);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [threadId, setThreadId] = useState<string | null>((f as any).threadId || null);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [loadingThread, setLoadingThread] = useState(false);
+  const [templates, setTemplates] = useState<ResponseTemplate[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const hasTemplates = org ? PLAN_LIMITS[org.plan].hasTemplates : false;
+
+  // Load templates
+  useEffect(() => {
+    if (hasTemplates) {
+      getTemplates(orgId).then(setTemplates).catch(() => {});
+    }
+  }, [orgId, hasTemplates]);
 
   // Subscribe to messages when thread exists
   useEffect(() => {
@@ -389,7 +403,67 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
 
         {/* Reply input (only for identified and relay) */}
         {canReply && (
-          <div style={{ padding: "0 20px 16px", display: "flex", gap: 8 }}>
+          <div style={{ padding: "0 20px 16px" }}>
+            {/* Template picker */}
+            {hasTemplates && templates.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <button
+                  onClick={() => setShowTemplates(!showTemplates)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#8a8578",
+                    cursor: "pointer",
+                    fontFamily: fontStack,
+                    padding: "2px 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  📝 {showTemplates ? "Hide templates" : "Use a template"}
+                  <span style={{ fontSize: 9, transform: showTemplates ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
+                </button>
+                {showTemplates && (
+                  <div style={{
+                    display: "flex",
+                    gap: 6,
+                    flexWrap: "wrap",
+                    marginTop: 6,
+                    padding: "8px 0",
+                  }}>
+                    {templates.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setReplyText(t.body);
+                          setShowTemplates(false);
+                          trackTemplateUsage(orgId, t.id).catch(() => {});
+                        }}
+                        style={{
+                          padding: "5px 12px",
+                          borderRadius: 8,
+                          border: `1px solid #e8e5de`,
+                          background: "#f8f6f1",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          color: "#1a1a2e",
+                          fontFamily: fontStack,
+                          transition: "all 0.15s",
+                        }}
+                        title={t.body}
+                      >
+                        {t.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
             <textarea
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
@@ -436,6 +510,7 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
             >
               {sending ? "..." : "Send"}
             </button>
+            </div>
           </div>
         )}
       </div>

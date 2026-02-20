@@ -19,9 +19,10 @@ interface Props {
   onSelect?: (feedback: Feedback) => void;
   categoryFilter?: string | null;
   showArchived?: boolean;
+  viewFilter?: "inbox" | "needs_reply" | "resolved";
 }
 
-export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFilter, showArchived }: Props) {
+export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFilter, showArchived, viewFilter }: Props) {
   const { theme } = useBrand();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [filter, setFilter] = useState<string>("all");
@@ -35,12 +36,25 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
   }, [orgId]);
 
   const filtered = feedback.filter((f) => {
-    // Hide archived from normal views, show only in resolved/archive view
-    if (!showArchived && f.status === "archived") return false;
+    // View-level filtering from sidebar nav
+    if (viewFilter === "resolved") {
+      // Only show resolved/archived items
+      if (f.status !== "resolved" && f.status !== "archived") return false;
+    } else if (viewFilter === "needs_reply") {
+      // Only show needs_reply and new items
+      if (f.status !== "needs_reply" && f.status !== "new") return false;
+    } else {
+      // Inbox: hide archived
+      if (!showArchived && f.status === "archived") return false;
+    }
+
     if (categoryFilter && !f.categories.includes(categoryFilter)) return false;
+
+    // Local filter buttons (within the view)
     if (filter === "needs_reply" && f.status !== "needs_reply" && f.status !== "new") return false;
     if (filter === "urgent" && f.sentimentLabel !== "urgent") return false;
     if (filter !== "all" && filter !== "needs_reply" && filter !== "urgent" && f.type !== filter) return false;
+
     if (search) {
       const q = search.toLowerCase();
       if (

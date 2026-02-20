@@ -63,7 +63,7 @@ export default function TemplatesManager({ orgId }: Props) {
     await loadTemplates();
   };
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "10px 14px",
     border: `1.5px solid ${theme.divider}`,
@@ -73,6 +73,7 @@ export default function TemplatesManager({ orgId }: Props) {
     background: theme.paper,
     outline: "none",
     fontFamily: fontStack,
+    boxSizing: "border-box" as const,
   };
 
   // Gate check
