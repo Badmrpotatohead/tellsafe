@@ -75,6 +75,11 @@ export const collections = {
     collection(db, "organizations", orgId, "templates"),
   template: (orgId: string, templateId: string) =>
     doc(db, "organizations", orgId, "templates", templateId),
+
+  updates: (orgId: string) =>
+    collection(db, "organizations", orgId, "updates"),
+  update: (orgId: string, updateId: string) =>
+    doc(db, "organizations", orgId, "updates", updateId),
 };
 
 // Re-export Firestore utilities for convenience

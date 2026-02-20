@@ -33,6 +33,7 @@ import type {
   ThreadMessage,
   ResponseTemplate,
   OrgAdmin,
+  OrgUpdate,
   SubmitFeedbackRequest,
 } from "../types";
 
@@ -74,7 +75,7 @@ export async function getOrganization(
   return { id: snap.id, ...snap.data() } as Organization;
 }
 
-/** Update org settings (branding, categories, tagline) */
+/** Update org settings (branding, categories, integrations, etc.) */
 export async function updateOrganization(
   orgId: string,
   updates: Partial<
@@ -86,6 +87,10 @@ export async function updateOrganization(
       | "accentColor"
       | "tagline"
       | "categories"
+      | "webhookUrl"
+      | "webhookEnabled"
+      | "digestEnabled"
+      | "digestDay"
     >
   >
 ) {
@@ -418,4 +423,67 @@ export async function getFeedbackStats(orgId: string) {
     categoryCounts,
     sentimentCounts,
   };
+}
+
+// ============================================================
+// Updates Board
+// ============================================================
+
+/** Get all updates for an org (admin) */
+export async function getUpdates(orgId: string): Promise<OrgUpdate[]> {
+  const snap = await getDocs(
+    query(collections.updates(orgId), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map(
+    (doc) => ({ id: doc.id, orgId, ...doc.data() } as OrgUpdate)
+  );
+}
+
+/** Get published updates only (public page) */
+export async function getPublishedUpdates(orgId: string): Promise<OrgUpdate[]> {
+  const snap = await getDocs(
+    query(
+      collections.updates(orgId),
+      where("status", "==", "published"),
+      orderBy("createdAt", "desc")
+    )
+  );
+  return snap.docs.map(
+    (doc) => ({ id: doc.id, orgId, ...doc.data() } as OrgUpdate)
+  );
+}
+
+/** Create a new update */
+export async function createUpdate(
+  orgId: string,
+  data: { title: string; body: string; category?: string; emoji?: string; status?: string }
+) {
+  const now = new Date().toISOString();
+  const docRef = await addDoc(collections.updates(orgId), {
+    title: data.title,
+    body: data.body,
+    category: data.category || null,
+    emoji: data.emoji || "✨",
+    status: data.status || "draft",
+    createdAt: now,
+    updatedAt: now,
+  });
+  return docRef.id;
+}
+
+/** Update an existing update */
+export async function updateOrgUpdate(
+  orgId: string,
+  updateId: string,
+  data: Partial<Pick<OrgUpdate, "title" | "body" | "category" | "emoji" | "status">>
+) {
+  await updateDoc(collections.update(orgId, updateId), {
+    ...data,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/** Delete an update */
+export async function deleteOrgUpdate(orgId: string, updateId: string) {
+  await deleteDoc(collections.update(orgId, updateId));
 }

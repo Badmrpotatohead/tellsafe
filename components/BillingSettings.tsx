@@ -43,6 +43,7 @@ const PLAN_CARDS: PlanCard[] = [
       "1 admin",
       "Anonymous & identified feedback",
       "Basic inbox management",
+      "Kiosk/tablet mode",
     ],
   },
   {
@@ -74,6 +75,9 @@ const PLAN_CARDS: PlanCard[] = [
       "AI sentiment analysis",
       "Surveys & response templates",
       "CSV export & analytics",
+      "Multi-language forms",
+      "Public updates board",
+      "Slack/Discord integration",
     ],
   },
 ];
@@ -513,7 +517,7 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
         <strong style={{ color: theme.ink }}>Need help choosing?</strong>{" "}
         Free is perfect for trying TellSafe out. Community adds relay messaging, custom branding, and
         unlimited submissions. Pro unlocks AI sentiment analysis, response templates, CSV exports,
-        and analytics for organizations that need the full picture.
+        analytics, multi-language forms, a public updates board, and Slack/Discord integration for organizations that need the full picture.
       </div>
     </div>
   );

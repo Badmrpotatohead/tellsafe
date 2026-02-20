@@ -15,6 +15,7 @@ import {
   sendRelayConfirmation,
   sendNewFeedbackNotification,
 } from "../../../lib/email";
+import { sendWebhookNotification } from "../../../lib/webhooks";
 import type {
   Organization,
   Plan,
@@ -187,6 +188,23 @@ export async function POST(request: NextRequest) {
       }
     } catch (err) {
       console.error("Admin notification email failed:", err);
+    }
+
+    // --- Send webhook notification (Pro tier) ---
+    if (org.webhookUrl && org.webhookEnabled && PLAN_LIMITS[org.plan].hasWebhooks) {
+      try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://tellsafe.vercel.app";
+        await sendWebhookNotification(org.webhookUrl, {
+          orgName: org.name,
+          feedbackType: type,
+          category: categories?.[0] || "General",
+          previewText: text.trim().substring(0, 150),
+          sentimentLabel: feedbackData.sentimentLabel,
+          dashboardUrl: `${appUrl}/admin`,
+        });
+      } catch (err) {
+        console.error("Webhook notification failed (non-blocking):", err);
+      }
     }
 
     return NextResponse.json({

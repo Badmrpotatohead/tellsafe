@@ -50,13 +50,24 @@ function getPrivacyConfig(theme: ReturnType<typeof useBrand>["theme"]): Record<F
   };
 }
 
+interface PrivacyTranslations {
+  howWouldYouLikeToShare?: string;
+  identified?: string;
+  identifiedDesc?: string;
+  anonymous?: string;
+  anonymousDesc?: string;
+  relay?: string;
+  relayDesc?: string;
+}
+
 interface Props {
   value: FeedbackType;
   onChange: (type: FeedbackType) => void;
   relayEnabled: boolean; // false on free plan
+  translations?: PrivacyTranslations;
 }
 
-export default function PrivacySelector({ value, onChange, relayEnabled }: Props) {
+export default function PrivacySelector({ value, onChange, relayEnabled, translations }: Props) {
   const { theme } = useBrand();
   const config = getPrivacyConfig(theme);
   const current = config[value];
@@ -79,7 +90,7 @@ export default function PrivacySelector({ value, onChange, relayEnabled }: Props
           fontFamily: "'Outfit', system-ui, sans-serif",
         }}
       >
-        How would you like to share?
+        {translations?.howWouldYouLikeToShare || "How would you like to share?"}
       </label>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
@@ -121,10 +132,10 @@ export default function PrivacySelector({ value, onChange, relayEnabled }: Props
               />
               <div style={{ fontSize: 22, marginBottom: 4 }}>{cfg.icon}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: theme.ink }}>
-                {cfg.label}
+                {translations?.[type as keyof PrivacyTranslations] || cfg.label}
               </div>
               <div style={{ fontSize: 11, color: theme.muted, lineHeight: 1.35 }}>
-                {cfg.desc}
+                {translations?.[`${type}Desc` as keyof PrivacyTranslations] || cfg.desc}
               </div>
             </button>
           );

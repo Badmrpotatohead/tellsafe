@@ -61,4 +61,9 @@ export const adminCollections = {
 
   templates: (orgId: string) =>
     adminDb.collection("organizations").doc(orgId).collection("templates"),
+
+  updates: (orgId: string) =>
+    adminDb.collection("organizations").doc(orgId).collection("updates"),
+  updateDoc: (orgId: string, updateId: string) =>
+    adminDb.collection("organizations").doc(orgId).collection("updates").doc(updateId),
 };

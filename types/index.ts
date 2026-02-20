@@ -14,6 +14,9 @@ export interface PlanLimits {
   hasTemplates: boolean;
   hasCsvExport: boolean;
   hasAnalytics: boolean;
+  hasMultiLanguage: boolean;
+  hasUpdatesBoard: boolean;
+  hasWebhooks: boolean;
 }
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
@@ -26,6 +29,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     hasTemplates: false,
     hasCsvExport: false,
     hasAnalytics: false,
+    hasMultiLanguage: false,
+    hasUpdatesBoard: false,
+    hasWebhooks: false,
   },
   community: {
     maxSubmissionsPerMonth: Infinity,
@@ -36,6 +42,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     hasTemplates: false,
     hasCsvExport: false,
     hasAnalytics: false,
+    hasMultiLanguage: false,
+    hasUpdatesBoard: false,
+    hasWebhooks: false,
   },
   pro: {
     maxSubmissionsPerMonth: Infinity,
@@ -46,6 +55,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     hasTemplates: true,
     hasCsvExport: true,
     hasAnalytics: true,
+    hasMultiLanguage: true,
+    hasUpdatesBoard: true,
+    hasWebhooks: true,
   },
 };
 
@@ -70,6 +82,12 @@ export interface Organization {
   ownerId: string; // Firebase Auth UID of creator
   submissionCount: number; // current month submissions
   submissionResetDate: string; // ISO date of next reset
+  // Webhook integration (Pro)
+  webhookUrl?: string | null;
+  webhookEnabled?: boolean;
+  // Weekly digest
+  digestEnabled?: boolean;
+  digestDay?: number; // 0=Sun..6=Sat, default 1 (Monday)
   createdAt: string;
   updatedAt: string;
 }
@@ -151,6 +169,21 @@ export interface ResponseTemplate {
   body: string; // the template text
   category: string | null; // optional: auto-suggest for specific categories
   usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Updates Board ---
+export type UpdateStatus = "published" | "draft";
+
+export interface OrgUpdate {
+  id: string;
+  orgId: string;
+  title: string;
+  body: string;
+  category: string | null;
+  emoji: string;
+  status: UpdateStatus;
   createdAt: string;
   updatedAt: string;
 }

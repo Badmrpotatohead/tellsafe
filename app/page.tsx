@@ -555,13 +555,13 @@ export default function LandingPage() {
           <div className="landing-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
             {[
               { name: "Free", price: "$0", period: "forever", desc: "Try it out", color: "#8a8578",
-                features: ["1 organization", "1 admin", "25 submissions/month", "Identified & anonymous", "QR code generator"],
+                features: ["1 organization", "1 admin", "25 submissions/month", "Identified & anonymous", "QR code generator", "Kiosk/tablet mode"],
                 cta: "Get Started", popular: false },
               { name: "Community", price: "$4.99", period: "/month", desc: "Active communities", color: "#2d6a6a",
                 features: ["1 organization", "3 admins", "Unlimited submissions", "Anonymous relay messaging", "Custom branding & colors", "In-app replies & categories"],
                 cta: "Start Free Trial", popular: true },
               { name: "Pro", price: "$9.99", period: "/month", desc: "Multi-community leaders", color: "#c05d3b",
-                features: ["Up to 3 organizations", "5 admins per org", "Everything in Community", "AI sentiment analysis", "Surveys & response templates", "CSV export & analytics"],
+                features: ["Up to 3 organizations", "5 admins per org", "Everything in Community", "AI sentiment analysis", "Surveys & response templates", "CSV export & analytics", "Multi-language forms", "Public updates board", "Slack/Discord integration"],
                 cta: "Start Free Trial", popular: false },
             ].map((plan) => (
               <div key={plan.name} className="price-card" style={{

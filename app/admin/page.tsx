@@ -23,6 +23,8 @@ import SurveyBuilder from "../../components/SurveyBuilder";
 import SurveyResults from "../../components/SurveyResults";
 import BillingSettings from "../../components/BillingSettings";
 import TeamAccess from "../../components/TeamAccess";
+import UpdatesManager from "../../components/UpdatesManager";
+import IntegrationsSettings from "../../components/IntegrationsSettings";
 import type { AdminView } from "../../components/AdminSidebar";
 import { PLAN_LIMITS } from "../../types";
 
@@ -594,6 +596,66 @@ function AdminPageInner() {
             onBack={() => { setViewingSurveyResults(null); setView("surveys"); }}
           />
         ) : null;
+
+      case "updates":
+        if (!PLAN_LIMITS[org.plan].hasUpdatesBoard) {
+          return (
+            <div style={{ padding: 36, fontFamily: fontStack, textAlign: "center", maxWidth: 420, margin: "60px auto" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📢</div>
+              <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
+                Updates Board
+              </h2>
+              <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                Share what changed based on feedback. Close the loop with your community and encourage more submissions. Available on the Pro plan.
+              </p>
+              <button
+                onClick={() => setView("billing")}
+                style={{
+                  padding: "12px 28px", border: "none", borderRadius: 10,
+                  background: "#2d6a6a", color: "#fff", fontSize: 14,
+                  fontWeight: 700, cursor: "pointer", fontFamily: fontStack,
+                }}
+              >
+                Upgrade to Pro
+              </button>
+            </div>
+          );
+        }
+        return (
+          <div style={{ padding: 36 }}>
+            <UpdatesManager orgId={orgId} />
+          </div>
+        );
+
+      case "integrations":
+        if (!PLAN_LIMITS[org.plan].hasWebhooks) {
+          return (
+            <div style={{ padding: 36, fontFamily: fontStack, textAlign: "center", maxWidth: 420, margin: "60px auto" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🔌</div>
+              <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
+                Integrations
+              </h2>
+              <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                Send new feedback directly to your Slack or Discord channel. Never miss a submission. Available on the Pro plan.
+              </p>
+              <button
+                onClick={() => setView("billing")}
+                style={{
+                  padding: "12px 28px", border: "none", borderRadius: 10,
+                  background: "#2d6a6a", color: "#fff", fontSize: 14,
+                  fontWeight: 700, cursor: "pointer", fontFamily: fontStack,
+                }}
+              >
+                Upgrade to Pro
+              </button>
+            </div>
+          );
+        }
+        return (
+          <div style={{ padding: 36 }}>
+            <IntegrationsSettings orgId={orgId} />
+          </div>
+        );
 
       case "billing":
         return (

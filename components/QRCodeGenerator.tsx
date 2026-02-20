@@ -23,8 +23,11 @@ export default function QRCodeGenerator({ orgSlug }: Props) {
   const { theme, orgName } = useBrand();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedKiosk, setCopiedKiosk] = useState(false);
 
-  const formUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://tellsafe.app"}/${orgSlug}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://tellsafe.app";
+  const formUrl = `${baseUrl}/${orgSlug}`;
+  const kioskUrl = `${baseUrl}/${orgSlug}?mode=kiosk`;
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -91,6 +94,12 @@ export default function QRCodeGenerator({ orgSlug }: Props) {
     navigator.clipboard.writeText(formUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyKiosk = () => {
+    navigator.clipboard.writeText(kioskUrl);
+    setCopiedKiosk(true);
+    setTimeout(() => setCopiedKiosk(false), 2000);
   };
 
   return (
@@ -200,6 +209,63 @@ export default function QRCodeGenerator({ orgSlug }: Props) {
           >
             {copied ? "✓ Copied" : "Copy"}
           </button>
+        </div>
+      </div>
+
+      {/* Kiosk link */}
+      <div style={{ marginBottom: 24 }}>
+        <label
+          style={{
+            display: "block",
+            fontSize: 12,
+            fontWeight: 600,
+            marginBottom: 8,
+            color: theme.ink,
+          }}
+        >
+          Kiosk Mode Link
+          <span style={{ fontWeight: 400, color: theme.muted, fontSize: 11, marginLeft: 6 }}>
+            (auto-resets after submission)
+          </span>
+        </label>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={kioskUrl}
+            readOnly
+            style={{
+              flex: 1,
+              padding: "10px 14px",
+              border: `1.5px solid ${theme.divider}`,
+              borderRadius: 10,
+              fontSize: 13,
+              color: theme.ink,
+              background: theme.paper,
+              fontFamily: monoFont,
+              outline: "none",
+            }}
+            onClick={(e) => (e.target as HTMLInputElement).select()}
+          />
+          <button
+            onClick={handleCopyKiosk}
+            style={{
+              padding: "10px 18px",
+              background: copiedKiosk ? "#059669" : theme.ink,
+              color: "#fff",
+              border: "none",
+              borderRadius: 10,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: fontStack,
+              transition: "background 0.3s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {copiedKiosk ? "✓ Copied" : "Copy"}
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: theme.muted, marginTop: 6, lineHeight: 1.5 }}>
+          Use this link on an iPad or tablet at your venue. The form auto-resets 5 seconds after each submission — perfect for walk-up feedback stations.
         </div>
       </div>
 

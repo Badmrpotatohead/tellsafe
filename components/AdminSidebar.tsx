@@ -15,7 +15,7 @@ const displayFont = "'Fraunces', Georgia, serif";
 const monoFont = "'JetBrains Mono', monospace";
 const fontStack = "'Outfit', system-ui, sans-serif";
 
-type AdminView = "inbox" | "needs_reply" | "resolved" | "branding" | "team" | "qr" | "templates" | "analytics" | "surveys" | "survey_build" | "survey_results" | "billing";
+type AdminView = "inbox" | "needs_reply" | "resolved" | "branding" | "team" | "qr" | "templates" | "analytics" | "surveys" | "survey_build" | "survey_results" | "billing" | "updates" | "integrations";
 
 // Views that require specific plan features
 const PRO_VIEWS: AdminView[] = ["analytics", "templates"];
@@ -70,10 +70,12 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
   const navItems: NavItem[] = [
     { icon: "📊", label: "Analytics", view: "analytics" as AdminView, active: activeView === "analytics", proTag: !limits.hasAnalytics },
     { icon: "📋", label: "Surveys", view: "surveys" as AdminView, active: activeView === "surveys" || activeView === "survey_build" || activeView === "survey_results" },
+    { icon: "📢", label: "Updates", view: "updates" as AdminView, active: activeView === "updates", proTag: !limits.hasUpdatesBoard },
     { icon: "🎨", label: "Branding", view: "branding" as AdminView, active: activeView === "branding" },
     { icon: "📝", label: "Templates", view: "templates" as AdminView, active: activeView === "templates", proTag: !limits.hasTemplates },
     { icon: "👥", label: "Team Access", view: "team" as AdminView, active: activeView === "team" },
     { icon: "🔗", label: "QR Code & Link", view: "qr" as AdminView, active: activeView === "qr" },
+    { icon: "🔌", label: "Integrations", view: "integrations" as AdminView, active: activeView === "integrations", proTag: !limits.hasWebhooks },
     { icon: "💳", label: "Billing", view: "billing" as AdminView, active: activeView === "billing" },
     { sep: true },
     { icon: "🚪", label: "Sign Out", onClick: logout },
