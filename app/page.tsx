@@ -561,7 +561,7 @@ export default function LandingPage() {
                 features: ["1 organization", "3 admins", "Unlimited submissions", "Anonymous relay messaging", "Custom branding & colors", "In-app replies & categories"],
                 cta: "Start Free Trial", popular: true },
               { name: "Pro", price: "$9.99", period: "/month", desc: "Multi-community leaders", color: "#c05d3b",
-                features: ["Up to 3 organizations", "5 admins per org", "Everything in Community", "AI sentiment analysis", "Response templates", "CSV export & analytics"],
+                features: ["Up to 3 organizations", "5 admins per org", "Everything in Community", "AI sentiment analysis", "Surveys & response templates", "CSV export & analytics"],
                 cta: "Start Free Trial", popular: false },
             ].map((plan) => (
               <div key={plan.name} className="price-card" style={{

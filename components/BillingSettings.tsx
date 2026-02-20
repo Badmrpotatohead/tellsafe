@@ -72,7 +72,7 @@ const PLAN_CARDS: PlanCard[] = [
       "5 admins",
       "Everything in Community",
       "AI sentiment analysis",
-      "Response templates",
+      "Surveys & response templates",
       "CSV export & analytics",
     ],
   },
