@@ -111,6 +111,7 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
     { value: "needs_reply", label: "Needs Reply", color: theme.accent },
     { value: "replied", label: "Replied", color: theme.primary },
     { value: "resolved", label: "Resolved", color: theme.muted },
+    { value: "archived", label: "📦 Archive", color: theme.muted },
   ];
 
   const formatTime = (iso: string) => {

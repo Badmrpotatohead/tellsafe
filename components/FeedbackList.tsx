@@ -208,7 +208,28 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
                   </span>
                   {isRelay && <span>#{(f as any).threadId}</span>}
                   {f.type === "anonymous" && <span>No reply possible</span>}
-                  {f.status === "resolved" || f.status === "archived" ? (
+                  {f.status === "resolved" ? (
+                    <span style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "archived"); }}
+                        style={{
+                          fontSize: 11, color: theme.muted,
+                          background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
+                        }}
+                      >
+                        📦 Archive
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "new"); }}
+                        style={{
+                          fontSize: 11, color: theme.accent,
+                          background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
+                        }}
+                      >
+                        ↩ Reopen
+                      </button>
+                    </span>
+                  ) : f.status === "archived" ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "new"); }}
                       style={{
