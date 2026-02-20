@@ -222,6 +222,22 @@ export async function batchArchiveResolved(orgId: string): Promise<number> {
   return snap.size;
 }
 
+/** Delete a single feedback item permanently */
+export async function deleteFeedback(orgId: string, feedbackId: string) {
+  await deleteDoc(collections.feedbackDoc(orgId, feedbackId));
+}
+
+/** Batch delete multiple feedback items permanently */
+export async function batchDeleteFeedback(orgId: string, feedbackIds: string[]): Promise<number> {
+  if (feedbackIds.length === 0) return 0;
+  const batch = writeBatch(db);
+  feedbackIds.forEach((id) => {
+    batch.delete(collections.feedbackDoc(orgId, id));
+  });
+  await batch.commit();
+  return feedbackIds.length;
+}
+
 // ============================================================
 // Relay Thread Operations
 // ============================================================

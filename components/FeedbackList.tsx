@@ -4,9 +4,9 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useBrand } from "./BrandProvider";
-import { subscribeFeedback, updateFeedbackStatus } from "../lib/data";
+import { subscribeFeedback, updateFeedbackStatus, batchDeleteFeedback } from "../lib/data";
 import type { Feedback, FeedbackType, FeedbackStatus } from "../types";
 import type { BrandTheme } from "./BrandProvider";
 
@@ -27,6 +27,19 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+
+  // Multi-select state
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
+
+  // Clear selection on view change
+  useEffect(() => {
+    setSelected(new Set());
+    setLastClickedId(null);
+    setConfirmDelete(false);
+  }, [viewFilter, categoryFilter]);
 
   useEffect(() => {
     const unsubscribe = subscribeFeedback(orgId, {}, (items) => {
@@ -70,6 +83,92 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
     return true;
   });
 
+  // Handle card click with shift-select support
+  const handleCardClick = useCallback((e: React.MouseEvent, f: Feedback, index: number) => {
+    if (e.shiftKey) {
+      e.preventDefault();
+      setSelected((prev) => {
+        const next = new Set(prev);
+
+        if (lastClickedId !== null) {
+          // Range select: select everything between lastClicked and current
+          const lastIdx = filtered.findIndex((item) => item.id === lastClickedId);
+          if (lastIdx !== -1) {
+            const start = Math.min(lastIdx, index);
+            const end = Math.max(lastIdx, index);
+            for (let i = start; i <= end; i++) {
+              next.add(filtered[i].id);
+            }
+            return next;
+          }
+        }
+
+        // Toggle single item
+        if (next.has(f.id)) {
+          next.delete(f.id);
+        } else {
+          next.add(f.id);
+        }
+        return next;
+      });
+      setLastClickedId(f.id);
+      setConfirmDelete(false);
+      return;
+    }
+
+    // If items are selected and user clicks without shift, clear selection
+    if (selected.size > 0) {
+      setSelected(new Set());
+      setLastClickedId(null);
+      setConfirmDelete(false);
+      return;
+    }
+
+    // Normal click — open detail
+    const isRelay = f.type === "relay" && "threadId" in f;
+    if (isRelay && "threadId" in f) {
+      onOpenThread((f as any).threadId, f.id);
+    } else if (onSelect) {
+      onSelect(f);
+    }
+  }, [filtered, lastClickedId, selected, onOpenThread, onSelect]);
+
+  // Batch actions
+  const handleBatchArchive = async () => {
+    setBatchLoading(true);
+    const promises = Array.from(selected).map((id) =>
+      updateFeedbackStatus(orgId, id, "archived")
+    );
+    await Promise.all(promises);
+    setSelected(new Set());
+    setLastClickedId(null);
+    setBatchLoading(false);
+  };
+
+  const handleBatchDelete = async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setBatchLoading(true);
+    await batchDeleteFeedback(orgId, Array.from(selected));
+    setSelected(new Set());
+    setLastClickedId(null);
+    setConfirmDelete(false);
+    setBatchLoading(false);
+  };
+
+  const handleBatchResolve = async () => {
+    setBatchLoading(true);
+    const promises = Array.from(selected).map((id) =>
+      updateFeedbackStatus(orgId, id, "resolved")
+    );
+    await Promise.all(promises);
+    setSelected(new Set());
+    setLastClickedId(null);
+    setBatchLoading(false);
+  };
+
   const statusMap: Record<FeedbackStatus, { color: string; label: string }> = {
     new: { color: theme.accent, label: "New" },
     needs_reply: { color: theme.accent, label: "Needs reply" },
@@ -112,6 +211,30 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
 
   return (
     <div>
+      <style>{`
+        @keyframes actionBarSlideUp {
+          from { transform: translateY(100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
+
+      {/* Hint text when items are selected */}
+      {selected.size > 0 && (
+        <div style={{
+          fontSize: 12, color: theme.muted, marginBottom: 10, fontFamily: fontStack,
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 20, height: 20, borderRadius: 6,
+            background: theme.primary, color: "#fff", fontSize: 10, fontWeight: 700,
+          }}>
+            {selected.size}
+          </span>
+          selected — shift+click more to add, or click anywhere to clear
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
         <input
           value={search}
@@ -140,7 +263,7 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
         ))}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: selected.size > 0 ? 80 : 0 }}>
         {filtered.length === 0 && (
           <div style={{ padding: 40, textAlign: "center", color: theme.muted, fontSize: 14, fontFamily: fontStack }}>
             {feedback.length === 0
@@ -154,31 +277,37 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
           const sc = statusMap[f.status];
           const isRelay = f.type === "relay" && "threadId" in f;
           const timeAgo = formatTimeAgo(f.createdAt);
+          const isSelected = selected.has(f.id);
 
           return (
             <div
               key={f.id}
-              onClick={() => {
-                if (isRelay && "threadId" in f) {
-                  onOpenThread((f as any).threadId, f.id);
-                } else if (onSelect) {
-                  onSelect(f);
-                }
-              }}
+              onClick={(e) => handleCardClick(e, f, i)}
               style={{
-                background: "#fff", borderRadius: 14, padding: "18px 22px",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.03)", display: "flex", gap: 14,
-                cursor: "pointer", borderLeft: `4px solid ${tc.border}`,
-                transition: "all 0.2s", animation: `slideIn 0.35s ease ${i * 0.03}s both`,
-                opacity: f.status === "resolved" || f.status === "archived" ? 0.5 : 1,
+                background: isSelected ? `${theme.primary}08` : "#fff",
+                borderRadius: 14,
+                padding: "18px 22px",
+                boxShadow: isSelected ? `0 0 0 2px ${theme.primary}40` : "0 1px 3px rgba(0,0,0,0.03)",
+                display: "flex",
+                gap: 14,
+                cursor: "pointer",
+                borderLeft: `4px solid ${isSelected ? theme.primary : tc.border}`,
+                transition: "all 0.15s",
+                animation: `slideIn 0.35s ease ${i * 0.03}s both`,
+                opacity: f.status === "resolved" || f.status === "archived" ? (isSelected ? 0.8 : 0.5) : 1,
+                userSelect: selected.size > 0 ? "none" : "auto",
               }}
             >
+              {/* Selection indicator / type icon */}
               <div style={{
                 flexShrink: 0, width: 34, height: 34, borderRadius: 10,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 15, background: tc.bg,
+                fontSize: isSelected ? 16 : 15,
+                background: isSelected ? theme.primary : tc.bg,
+                color: isSelected ? "#fff" : "inherit",
+                transition: "all 0.15s",
               }}>
-                {tc.icon}
+                {isSelected ? "✓" : tc.icon}
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -205,61 +334,149 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
                   {f.text}
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, fontSize: 11, color: theme.muted }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.color, display: "inline-block" }} />
-                    {sc.label}
-                  </span>
-                  {isRelay && <span>#{(f as any).threadId}</span>}
-                  {f.type === "anonymous" && <span>No reply possible</span>}
-                  {f.status === "resolved" ? (
-                    <span style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "archived"); }}
-                        style={{
-                          fontSize: 11, color: theme.muted,
-                          background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
-                        }}
-                      >
-                        📦 Archive
-                      </button>
+                {/* Footer row — hide individual actions when in multi-select mode */}
+                {selected.size === 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, fontSize: 11, color: theme.muted }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.color, display: "inline-block" }} />
+                      {sc.label}
+                    </span>
+                    {isRelay && <span>#{(f as any).threadId}</span>}
+                    {f.type === "anonymous" && <span>No reply possible</span>}
+                    {f.status === "resolved" ? (
+                      <span style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "archived"); }}
+                          style={{
+                            fontSize: 11, color: theme.muted,
+                            background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
+                          }}
+                        >
+                          📦 Archive
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "new"); }}
+                          style={{
+                            fontSize: 11, color: theme.accent,
+                            background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
+                          }}
+                        >
+                          ↩ Reopen
+                        </button>
+                      </span>
+                    ) : f.status === "archived" ? (
                       <button
                         onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "new"); }}
                         style={{
-                          fontSize: 11, color: theme.accent,
+                          marginLeft: "auto", fontSize: 11, color: theme.accent,
                           background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
                         }}
                       >
                         ↩ Reopen
                       </button>
-                    </span>
-                  ) : f.status === "archived" ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "new"); }}
-                      style={{
-                        marginLeft: "auto", fontSize: 11, color: theme.accent,
-                        background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
-                      }}
-                    >
-                      ↩ Reopen
-                    </button>
-                  ) : (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "resolved"); }}
-                      style={{
-                        marginLeft: "auto", fontSize: 11, color: theme.primary,
-                        background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
-                      }}
-                    >
-                      ✓ Resolve
-                    </button>
-                  )}
-                </div>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "resolved"); }}
+                        style={{
+                          marginLeft: "auto", fontSize: 11, color: theme.primary,
+                          background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
+                        }}
+                      >
+                        ✓ Resolve
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* ====== Floating Action Bar ====== */}
+      {selected.size > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "12px 24px",
+            background: "#1a1a2e",
+            borderRadius: 16,
+            boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
+            zIndex: 90,
+            fontFamily: fontStack,
+            animation: "actionBarSlideUp 0.25s ease",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginRight: 4 }}>
+            {selected.size} selected
+          </span>
+
+          <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.12)" }} />
+
+          {/* Resolve (only show if not on resolved view) */}
+          {viewFilter !== "resolved" && (
+            <button
+              onClick={handleBatchResolve}
+              disabled={batchLoading}
+              style={{
+                padding: "7px 16px", borderRadius: 8, border: "none",
+                background: "rgba(45,106,106,0.2)", color: "#a3c9c9",
+                fontSize: 12, fontWeight: 700, cursor: batchLoading ? "wait" : "pointer",
+                fontFamily: fontStack, transition: "all 0.15s",
+              }}
+            >
+              ✓ Resolve
+            </button>
+          )}
+
+          <button
+            onClick={handleBatchArchive}
+            disabled={batchLoading}
+            style={{
+              padding: "7px 16px", borderRadius: 8, border: "none",
+              background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)",
+              fontSize: 12, fontWeight: 700, cursor: batchLoading ? "wait" : "pointer",
+              fontFamily: fontStack, transition: "all 0.15s",
+            }}
+          >
+            📦 Archive
+          </button>
+
+          <button
+            onClick={handleBatchDelete}
+            disabled={batchLoading}
+            style={{
+              padding: "7px 16px", borderRadius: 8, border: "none",
+              background: confirmDelete ? "#dc2626" : "rgba(220,38,38,0.15)",
+              color: confirmDelete ? "#fff" : "#f87171",
+              fontSize: 12, fontWeight: 700, cursor: batchLoading ? "wait" : "pointer",
+              fontFamily: fontStack, transition: "all 0.15s",
+            }}
+          >
+            {confirmDelete ? `Delete ${selected.size} permanently?` : "🗑️ Delete"}
+          </button>
+
+          <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.12)" }} />
+
+          <button
+            onClick={() => { setSelected(new Set()); setLastClickedId(null); setConfirmDelete(false); }}
+            style={{
+              padding: "7px 12px", borderRadius: 8, border: "none",
+              background: "transparent", color: "rgba(255,255,255,0.4)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontFamily: fontStack,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
