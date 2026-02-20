@@ -23,6 +23,7 @@ import SurveyBuilder from "../../components/SurveyBuilder";
 import SurveyResults from "../../components/SurveyResults";
 import BillingSettings from "../../components/BillingSettings";
 import type { AdminView } from "../../components/AdminSidebar";
+import { PLAN_LIMITS } from "../../types";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -359,6 +360,7 @@ function AdminPageInner() {
             onCategoryFilter={setCategoryFilter}
             mobileOpen={sidebarOpen}
             onMobileClose={() => setSidebarOpen(false)}
+            plan={org.plan}
           />
           <main className="admin-main" style={{ marginLeft: 240, flex: 1 }}>
             {mobileTopBar}
@@ -421,23 +423,55 @@ function AdminPageInner() {
                 )}
               </div>
               <div className="admin-inbox-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button
-                  onClick={handleExportCsv}
-                  className="admin-action-btn"
-                  style={{
-                    padding: "7px 16px",
-                    border: "1.5px solid rgba(26,26,46,0.10)",
-                    borderRadius: 8,
-                    background: "#fff",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    color: "#1a1a2e",
-                    fontFamily: fontStack,
-                  }}
-                >
-                  📤 Export
-                </button>
+                {PLAN_LIMITS[org.plan].hasCsvExport ? (
+                  <button
+                    onClick={handleExportCsv}
+                    className="admin-action-btn"
+                    style={{
+                      padding: "7px 16px",
+                      border: "1.5px solid rgba(26,26,46,0.10)",
+                      borderRadius: 8,
+                      background: "#fff",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      color: "#1a1a2e",
+                      fontFamily: fontStack,
+                    }}
+                  >
+                    📤 Export
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setView("billing")}
+                    className="admin-action-btn"
+                    style={{
+                      padding: "7px 16px",
+                      border: "1.5px solid rgba(26,26,46,0.10)",
+                      borderRadius: 8,
+                      background: "#fff",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      color: "#8a8578",
+                      fontFamily: fontStack,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    📤 Export
+                    <span style={{
+                      fontSize: 8,
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      padding: "1px 5px",
+                      borderRadius: 3,
+                      background: "rgba(139,92,246,0.12)",
+                      color: "#7c3aed",
+                    }}>PRO</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -509,6 +543,29 @@ function AdminPageInner() {
         );
 
       case "analytics":
+        if (!PLAN_LIMITS[org.plan].hasAnalytics) {
+          return (
+            <div style={{ padding: 36, fontFamily: fontStack, textAlign: "center", maxWidth: 420, margin: "60px auto" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
+              <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
+                Analytics Dashboard
+              </h2>
+              <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                See submission trends, sentiment breakdowns, category distribution, and more. Available on the Pro plan.
+              </p>
+              <button
+                onClick={() => setView("billing")}
+                style={{
+                  padding: "12px 28px", border: "none", borderRadius: 10,
+                  background: "#2d6a6a", color: "#fff", fontSize: 14,
+                  fontWeight: 700, cursor: "pointer", fontFamily: fontStack,
+                }}
+              >
+                Upgrade to Pro
+              </button>
+            </div>
+          );
+        }
         return <AnalyticsDashboard orgId={orgId} />;
 
       case "surveys":
@@ -567,6 +624,7 @@ function AdminPageInner() {
           onCategoryFilter={setCategoryFilter}
           mobileOpen={sidebarOpen}
           onMobileClose={() => setSidebarOpen(false)}
+          plan={org.plan}
         />
         <main className="admin-main" style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
           {mobileTopBar}

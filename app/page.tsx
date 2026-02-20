@@ -558,11 +558,11 @@ export default function LandingPage() {
                 features: ["1 organization", "1 admin", "25 submissions/month", "Identified & anonymous", "QR code generator"],
                 cta: "Get Started", popular: false },
               { name: "Community", price: "$4.99", period: "/month", desc: "Active communities", color: "#2d6a6a",
-                features: ["1 organization", "3 admins", "Unlimited submissions", "Anonymous relay", "Custom branding", "In-app replies"],
-                cta: "Start Free Trial", popular: false },
+                features: ["1 organization", "3 admins", "Unlimited submissions", "Anonymous relay messaging", "Custom branding & colors", "In-app replies & categories"],
+                cta: "Start Free Trial", popular: true },
               { name: "Pro", price: "$9.99", period: "/month", desc: "Multi-community leaders", color: "#c05d3b",
                 features: ["Up to 3 organizations", "5 admins per org", "Everything in Community", "AI sentiment analysis", "Response templates", "CSV export & analytics"],
-                cta: "Start Free Trial", popular: true },
+                cta: "Start Free Trial", popular: false },
             ].map((plan) => (
               <div key={plan.name} className="price-card" style={{
                 padding: 32, borderRadius: 20, background: "#fff",

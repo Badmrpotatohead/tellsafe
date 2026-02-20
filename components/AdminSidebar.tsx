@@ -8,13 +8,17 @@ import React, { useState, useEffect } from "react";
 import { useBrand } from "./BrandProvider";
 import { useAuth } from "./AuthProvider";
 import { subscribeFeedback } from "../lib/data";
-import type { Feedback } from "../types";
+import { PLAN_LIMITS } from "../types";
+import type { Feedback, Plan } from "../types";
 
 const displayFont = "'Fraunces', Georgia, serif";
 const monoFont = "'JetBrains Mono', monospace";
 const fontStack = "'Outfit', system-ui, sans-serif";
 
 type AdminView = "inbox" | "needs_reply" | "resolved" | "branding" | "team" | "qr" | "templates" | "analytics" | "surveys" | "survey_build" | "survey_results" | "billing";
+
+// Views that require specific plan features
+const PRO_VIEWS: AdminView[] = ["analytics", "templates"];
 
 interface Props {
   orgId: string;
@@ -24,9 +28,10 @@ interface Props {
   onCategoryFilter?: (category: string | null) => void;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  plan?: Plan;
 }
 
-export default function AdminSidebar({ orgId, activeView, onNavigate, activeCategory, onCategoryFilter, mobileOpen, onMobileClose }: Props) {
+export default function AdminSidebar({ orgId, activeView, onNavigate, activeCategory, onCategoryFilter, mobileOpen, onMobileClose, plan = "free" }: Props) {
   const { theme, orgName, logoUrl } = useBrand();
   const { logout } = useAuth();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
@@ -48,9 +53,11 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
     (f) => f.status === "resolved" || f.status === "archived"
   ).length;
 
+  const limits = PLAN_LIMITS[plan];
+
   type NavItem =
     | { sep: true }
-    | { icon: string; label: string; view?: AdminView; badge?: number; active?: boolean; onClick?: () => void; sub?: boolean };
+    | { icon: string; label: string; view?: AdminView; badge?: number; active?: boolean; onClick?: () => void; sub?: boolean; proTag?: boolean };
 
   const inboxSubItems: NavItem[] = [
     { icon: "⚡", label: "Needs Reply", view: "needs_reply", badge: needsReplyCount, active: activeView === "needs_reply", sub: true },
@@ -61,10 +68,10 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
   ];
 
   const navItems: NavItem[] = [
-    { icon: "📊", label: "Analytics", view: "analytics" as AdminView, active: activeView === "analytics" },
+    { icon: "📊", label: "Analytics", view: "analytics" as AdminView, active: activeView === "analytics", proTag: !limits.hasAnalytics },
     { icon: "📋", label: "Surveys", view: "surveys" as AdminView, active: activeView === "surveys" || activeView === "survey_build" || activeView === "survey_results" },
     { icon: "🎨", label: "Branding", view: "branding" as AdminView, active: activeView === "branding" },
-    { icon: "📋", label: "Templates", view: "templates" as AdminView, active: activeView === "templates" },
+    { icon: "📝", label: "Templates", view: "templates" as AdminView, active: activeView === "templates", proTag: !limits.hasTemplates },
     { icon: "👥", label: "Team Access", view: "team" as AdminView, active: activeView === "team" },
     { icon: "🔗", label: "QR Code & Link", view: "qr" as AdminView, active: activeView === "qr" },
     { icon: "💳", label: "Billing", view: "billing" as AdminView, active: activeView === "billing" },
@@ -292,7 +299,19 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
                 {item.icon}
               </span>
               {item.label}
-              {item.badge !== undefined && item.badge > 0 && (
+              {item.proTag && (
+                <span style={{
+                  marginLeft: "auto",
+                  fontSize: 8,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "rgba(139,92,246,0.2)",
+                  color: "#a78bfa",
+                }}>PRO</span>
+              )}
+              {!item.proTag && item.badge !== undefined && item.badge > 0 && (
                 <span
                   style={{
                     marginLeft: "auto",

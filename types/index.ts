@@ -29,9 +29,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   community: {
     maxSubmissionsPerMonth: Infinity,
-    maxAdmins: 2,
+    maxAdmins: 3,
     hasRelay: true,
-    hasCustomBranding: false,
+    hasCustomBranding: true,
     hasSentiment: false,
     hasTemplates: false,
     hasCsvExport: false,

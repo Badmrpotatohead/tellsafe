@@ -54,9 +54,11 @@ const PLAN_CARDS: PlanCard[] = [
     highlighted: true,
     features: [
       "Unlimited submissions",
-      "2 admins",
+      "3 admins",
       "Everything in Free",
       "Anonymous relay messaging",
+      "Custom branding & colors",
+      "In-app replies & categories",
     ],
   },
   {
@@ -69,11 +71,9 @@ const PLAN_CARDS: PlanCard[] = [
       "Unlimited submissions",
       "5 admins",
       "Everything in Community",
-      "Custom branding",
-      "Sentiment analysis",
+      "AI sentiment analysis",
       "Response templates",
-      "CSV export",
-      "Analytics dashboard",
+      "CSV export & analytics",
     ],
   },
 ];
@@ -511,9 +511,9 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
         }}
       >
         <strong style={{ color: theme.ink }}>Need help choosing?</strong>{" "}
-        Free is perfect for trying TellSafe out. Community adds anonymous relay messaging for two-way
-        conversations. Pro unlocks sentiment analysis, custom branding, templates, exports, and
-        analytics for organizations that need the full picture.
+        Free is perfect for trying TellSafe out. Community adds relay messaging, custom branding, and
+        unlimited submissions. Pro unlocks AI sentiment analysis, response templates, CSV exports,
+        and analytics for organizations that need the full picture.
       </div>
     </div>
   );
