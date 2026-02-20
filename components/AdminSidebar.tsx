@@ -15,7 +15,7 @@ const displayFont = "'Fraunces', Georgia, serif";
 const monoFont = "'JetBrains Mono', monospace";
 const fontStack = "'Outfit', system-ui, sans-serif";
 
-type AdminView = "inbox" | "needs_reply" | "resolved" | "branding" | "team" | "qr" | "templates" | "analytics" | "surveys" | "survey_build" | "survey_results" | "billing" | "updates" | "integrations";
+type AdminView = "inbox" | "needs_reply" | "resolved" | "urgent" | "branding" | "team" | "qr" | "templates" | "analytics" | "surveys" | "survey_build" | "survey_results" | "billing" | "updates" | "integrations";
 
 // Views that require specific plan features
 const PRO_VIEWS: AdminView[] = ["analytics", "templates"];
@@ -35,7 +35,7 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
   const { theme, orgName, logoUrl } = useBrand();
   const { logout } = useAuth();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
-  const inboxViews: AdminView[] = ["inbox", "needs_reply", "resolved"];
+  const inboxViews: AdminView[] = ["inbox", "needs_reply", "resolved", "urgent"];
   const [inboxOpen, setInboxOpen] = useState(inboxViews.includes(activeView));
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
   const needsReplyCount = feedback.filter(
     (f) => f.status === "needs_reply" || f.status === "new"
   ).length;
-  const urgentCount = feedback.filter((f) => f.sentimentLabel === "urgent").length;
+  const urgentCount = feedback.filter((f) => f.sentimentLabel === "urgent" && f.status !== "resolved" && f.status !== "archived").length;
 
   const activeCount = feedback.filter((f) => f.status !== "archived").length;
   const resolvedCount = feedback.filter(
@@ -62,7 +62,7 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
   const inboxSubItems: NavItem[] = [
     { icon: "⚡", label: "Needs Reply", view: "needs_reply", badge: needsReplyCount, active: activeView === "needs_reply", sub: true },
     ...(urgentCount > 0
-      ? [{ icon: "🚨", label: "Urgent", view: "inbox" as AdminView, badge: urgentCount, sub: true }]
+      ? [{ icon: "🚨", label: "Urgent", view: "urgent" as AdminView, badge: urgentCount, active: activeView === "urgent", sub: true }]
       : []),
     { icon: "✅", label: "Resolved", view: "resolved", badge: resolvedCount, active: activeView === "resolved", sub: true },
   ];

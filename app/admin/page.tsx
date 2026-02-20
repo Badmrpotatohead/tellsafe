@@ -384,6 +384,7 @@ function AdminPageInner() {
       case "inbox":
       case "needs_reply":
       case "resolved":
+      case "urgent":
         return (
           <div className="admin-content-pad" style={{ padding: 28 }}>
             <div
@@ -405,6 +406,8 @@ function AdminPageInner() {
                     ? "Feedback Inbox"
                     : view === "needs_reply"
                     ? "Needs Reply"
+                    : view === "urgent"
+                    ? "🚨 Urgent"
                     : "Resolved"}
                 </h1>
                 {categoryFilter && (
@@ -485,7 +488,7 @@ function AdminPageInner() {
               onSelect={setSelectedFeedback}
               categoryFilter={categoryFilter}
               showArchived={view === "resolved"}
-              viewFilter={view as "inbox" | "needs_reply" | "resolved"}
+              viewFilter={view as "inbox" | "needs_reply" | "resolved" | "urgent"}
             />
             {view === "resolved" && (
               <div style={{ textAlign: "center", padding: "24px 0 8px" }}>

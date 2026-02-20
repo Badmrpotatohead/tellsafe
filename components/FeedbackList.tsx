@@ -19,7 +19,7 @@ interface Props {
   onSelect?: (feedback: Feedback) => void;
   categoryFilter?: string | null;
   showArchived?: boolean;
-  viewFilter?: "inbox" | "needs_reply" | "resolved";
+  viewFilter?: "inbox" | "needs_reply" | "resolved" | "urgent";
 }
 
 export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFilter, showArchived, viewFilter }: Props) {
@@ -43,6 +43,10 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
     } else if (viewFilter === "needs_reply") {
       // Only show needs_reply and new items
       if (f.status !== "needs_reply" && f.status !== "new") return false;
+    } else if (viewFilter === "urgent") {
+      // Only show urgent items that are still active
+      if (f.sentimentLabel !== "urgent") return false;
+      if (f.status === "resolved" || f.status === "archived") return false;
     } else {
       // Inbox: hide archived
       if (!showArchived && f.status === "archived") return false;
