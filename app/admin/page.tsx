@@ -27,6 +27,76 @@ import type { AdminView } from "../../components/AdminSidebar";
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
 
+const adminResponsiveCss = `
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+  @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+  /* ====== MOBILE ADMIN (≤ 768px) ====== */
+  @media (max-width: 768px) {
+    /* Sidebar: hidden off-screen by default, slides in as overlay */
+    .admin-sidebar {
+      transform: translateX(-100%) !important;
+    }
+    .admin-sidebar.admin-sidebar-open {
+      transform: translateX(0) !important;
+    }
+
+    /* Backdrop visible on mobile when sidebar open */
+    .admin-sidebar-backdrop {
+      display: block !important;
+    }
+
+    /* Main content: no left margin, full width */
+    .admin-main {
+      margin-left: 0 !important;
+    }
+
+    /* Mobile top bar visible */
+    .admin-mobile-topbar {
+      display: flex !important;
+    }
+
+    /* Content padding */
+    .admin-content-pad {
+      padding: 16px !important;
+    }
+
+    /* Inbox header stacks vertically */
+    .admin-inbox-header {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+    }
+
+    /* Action buttons: smaller text, wrap */
+    .admin-inbox-actions {
+      width: 100% !important;
+    }
+    .admin-action-btn {
+      flex: 1 !important;
+      min-width: 0 !important;
+      padding: 8px 10px !important;
+      font-size: 11px !important;
+      text-align: center !important;
+      justify-content: center !important;
+    }
+
+    /* Page title smaller */
+    .admin-page-title {
+      font-size: 22px !important;
+    }
+  }
+
+  /* ====== TABLET (769–1024px) ====== */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .admin-action-btn {
+      padding: 7px 10px !important;
+      font-size: 11px !important;
+    }
+  }
+`;
+
 export default function AdminPage() {
   return (
     <Suspense fallback={
@@ -48,6 +118,7 @@ function AdminPageInner() {
   const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
   const [editingSurvey, setEditingSurvey] = useState<any>(null);
   const [viewingSurveyResults, setViewingSurveyResults] = useState<any>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchParams = useSearchParams();
   const billingParam = searchParams.get("billing") as "success" | "cancel" | null;
 
@@ -185,6 +256,46 @@ function AdminPageInner() {
 
   const orgId = org.id;
 
+  const viewLabel = categoryFilter
+    ? categoryFilter
+    : view === "inbox" ? "Inbox"
+    : view === "needs_reply" ? "Needs Reply"
+    : view === "resolved" ? "Resolved"
+    : view === "branding" ? "Branding"
+    : view === "templates" ? "Templates"
+    : view === "team" ? "Team"
+    : view === "qr" ? "QR Code"
+    : view === "analytics" ? "Analytics"
+    : view === "surveys" ? "Surveys"
+    : view === "survey_build" ? "Survey Builder"
+    : view === "survey_results" ? "Results"
+    : view === "billing" ? "Billing"
+    : "Dashboard";
+
+  const mobileTopBar = (
+    <div className="admin-mobile-topbar" style={{
+      display: "none",
+      alignItems: "center",
+      gap: 12,
+      padding: "12px 16px",
+      background: "#111118",
+      color: "#f8f6f1",
+      position: "sticky",
+      top: 0,
+      zIndex: 40,
+    }}>
+      <button
+        onClick={() => setSidebarOpen(true)}
+        aria-label="Open menu"
+        style={{
+          background: "none", border: "none", color: "#f8f6f1",
+          fontSize: 22, cursor: "pointer", padding: 4, lineHeight: 1,
+        }}
+      >☰</button>
+      <span style={{ fontFamily: displayFont, fontSize: 16, fontWeight: 600 }}>{viewLabel}</span>
+    </div>
+  );
+
   const handleExportCsv = async () => {
     try {
       const { getAuth } = await import("firebase/auth");
@@ -238,10 +349,7 @@ function AdminPageInner() {
           href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
-        <style>{`
-          @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-          @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-        `}</style>
+        <style>{adminResponsiveCss}</style>
         <div style={{ display: "flex", minHeight: "100vh" }}>
           <AdminSidebar
             orgId={orgId}
@@ -249,8 +357,11 @@ function AdminPageInner() {
             onNavigate={(v) => { closeThread(); setView(v); }}
             activeCategory={categoryFilter}
             onCategoryFilter={setCategoryFilter}
+            mobileOpen={sidebarOpen}
+            onMobileClose={() => setSidebarOpen(false)}
           />
-          <main style={{ marginLeft: 240, flex: 1 }}>
+          <main className="admin-main" style={{ marginLeft: 240, flex: 1 }}>
+            {mobileTopBar}
             <RelayThread
               orgId={orgId}
               threadId={threadId}
@@ -269,17 +380,20 @@ function AdminPageInner() {
       case "needs_reply":
       case "resolved":
         return (
-          <div style={{ padding: 28 }}>
+          <div className="admin-content-pad" style={{ padding: 28 }}>
             <div
+              className="admin-inbox-header"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 marginBottom: 24,
+                gap: 12,
+                flexWrap: "wrap",
               }}
             >
               <div>
-                <h1 style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600 }}>
+                <h1 className="admin-page-title" style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600 }}>
                   {categoryFilter
                     ? categoryFilter
                     : view === "inbox"
@@ -306,30 +420,10 @@ function AdminPageInner() {
                   </button>
                 )}
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {view === "inbox" && (
-                  <button
-                    onClick={async () => {
-                      const count = await batchArchiveResolved(orgId);
-                      if (count === 0) alert("No resolved feedback to archive.");
-                    }}
-                    style={{
-                      padding: "7px 16px",
-                      border: "1.5px solid rgba(26,26,46,0.10)",
-                      borderRadius: 8,
-                      background: "#fff",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      color: "#8a8578",
-                      fontFamily: fontStack,
-                    }}
-                  >
-                    📦 Archive Resolved
-                  </button>
-                )}
+              <div className="admin-inbox-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
                   onClick={handleExportCsv}
+                  className="admin-action-btn"
                   style={{
                     padding: "7px 16px",
                     border: "1.5px solid rgba(26,26,46,0.10)",
@@ -342,22 +436,7 @@ function AdminPageInner() {
                     fontFamily: fontStack,
                   }}
                 >
-                  📤 Export CSV
-                </button>
-                <button
-                  style={{
-                    padding: "7px 16px",
-                    border: "1.5px solid rgba(26,26,46,0.10)",
-                    borderRadius: 8,
-                    background: "#fff",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    color: "#1a1a2e",
-                    fontFamily: fontStack,
-                  }}
-                >
-                  🔗 Share Feedback Form Link
+                  📤 Export
                 </button>
               </div>
             </div>
@@ -370,6 +449,29 @@ function AdminPageInner() {
               categoryFilter={categoryFilter}
               showArchived={view === "resolved"}
             />
+            {view === "resolved" && (
+              <div style={{ textAlign: "center", padding: "24px 0 8px" }}>
+                <button
+                  onClick={async () => {
+                    const count = await batchArchiveResolved(orgId);
+                    if (count === 0) alert("No resolved feedback to archive.");
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "#8a8578",
+                    cursor: "pointer",
+                    fontFamily: fontStack,
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  📦 Archive all resolved items
+                </button>
+              </div>
+            )}
           </div>
         );
 
@@ -455,12 +557,7 @@ function AdminPageInner() {
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet"
       />
-      <style>{`
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-      `}</style>
+      <style>{adminResponsiveCss}</style>
       <div style={{ display: "flex", minHeight: "100vh", background: "#f2f0eb" }}>
         <AdminSidebar
           orgId={orgId}
@@ -468,8 +565,11 @@ function AdminPageInner() {
           onNavigate={(v) => { setCategoryFilter(null); setView(v); }}
           activeCategory={categoryFilter}
           onCategoryFilter={setCategoryFilter}
+          mobileOpen={sidebarOpen}
+          onMobileClose={() => setSidebarOpen(false)}
         />
-        <main style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
+        <main className="admin-main" style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
+          {mobileTopBar}
           {renderView()}
           {selectedFeedback && (
             <FeedbackDetail

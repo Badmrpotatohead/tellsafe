@@ -18,7 +18,7 @@ function getResend(): Resend {
   return _resend;
 }
 
-const FROM_EMAIL = "TellSafe <noreply@tellsafe.com>";
+const FROM_EMAIL = "TellSafe <noreply@tellsafe.app>";
 
 // ============================================================
 // Relay: Confirmation to member after submission
@@ -76,7 +76,7 @@ export async function sendRelayReply(params: {
   await getResend().emails.send({
     from: FROM_EMAIL,
     to: memberEmail,
-    replyTo: `noreply@tellsafe.com`,
+    replyTo: `noreply@tellsafe.app`,
     subject: `Re: Your anonymous feedback — ${orgName}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">

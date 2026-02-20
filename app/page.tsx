@@ -114,11 +114,11 @@ export default function LandingPage() {
           .landing-hero-h1 { font-size: 36px !important; }
           .landing-hero-sub { font-size: 15px !important; }
           .landing-section-h2 { font-size: 28px !important; }
-          .landing-hero-ctas {
-            flex-direction: column !important;
-            align-items: center !important;
+          .landing-hero-ctas a {
+            width: 100% !important;
+            max-width: 320px !important;
+            text-align: center !important;
           }
-          .landing-hero-ctas a { width: 100%; max-width: 320px; text-align: center; }
           .landing-grid-3 { grid-template-columns: 1fr !important; }
           .landing-section { padding: 60px 0 !important; }
           .landing-hero { padding-top: 120px !important; padding-bottom: 60px !important; }
@@ -151,10 +151,10 @@ export default function LandingPage() {
         }}
       >
         <div className="landing-nav-inner" style={{ maxWidth: 1120, margin: "0 auto", padding: "0 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
             <span style={{ fontSize: 24 }}>🛡️</span>
             <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, color: "#a3c9c9" }}>TellSafe</span>
-          </div>
+          </a>
           <div className="landing-nav-links" style={{ display: "flex", alignItems: "center", gap: 28 }}>
             <a href="#features" style={{ fontSize: 14, fontWeight: 500, color: "rgba(247,245,240,0.55)" }}>Features</a>
             <a href="#demo" style={{ fontSize: 14, fontWeight: 500, color: "rgba(247,245,240,0.55)" }}>Demo</a>
@@ -247,19 +247,13 @@ export default function LandingPage() {
             TellSafe gives your community a safe, anonymous way to share feedback — with an optional relay so you can respond without breaking anonymity.
           </p>
 
-          {/* CTAs */}
-          <div className="fade-up-3 landing-hero-ctas" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
-            <a href="#demo" className="cta-btn" style={{
-              display: "inline-block", padding: "16px 36px",
+          {/* CTA */}
+          <div className="fade-up-3" style={{ display: "flex", justifyContent: "center" }}>
+            <a href="/auth/signup" className="cta-btn" style={{
+              display: "inline-block", padding: "16px 44px",
               background: "#2d6a6a", color: "#fff", borderRadius: 12,
               fontSize: 16, fontWeight: 700,
-            }}>See it in action →</a>
-            <a href="/auth/signup" className="cta-outline" style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              padding: "16px 28px", border: "1.5px solid rgba(247,245,240,0.15)",
-              borderRadius: 12, fontSize: 16, fontWeight: 600, color: "#f7f5f0",
-              transition: "all 0.2s",
-            }}>View Admin Demo</a>
+            }}>Get Started Free →</a>
           </div>
         </div>
       </section>
