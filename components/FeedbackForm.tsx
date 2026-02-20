@@ -306,19 +306,26 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
 
               {/* Updates board link */}
               {PLAN_LIMITS[org.plan].hasUpdatesBoard && (
-                <div style={{ marginTop: 16 }}>
-                  <a
-                    href={`/${org.slug}/updates`}
-                    style={{
-                      fontSize: 13,
-                      color: theme.primary,
-                      textDecoration: "none",
-                      fontWeight: 600,
-                    }}
-                  >
+                <a
+                  href={`/${org.slug}/updates`}
+                  style={{
+                    display: "block",
+                    marginTop: 16,
+                    padding: "14px 20px",
+                    borderRadius: 12,
+                    background: `${theme.primary}08`,
+                    border: `1.5px solid ${theme.primary}20`,
+                    textDecoration: "none",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 600, color: theme.primary, marginBottom: 2 }}>
                     📢 {t.seeUpdates}
-                  </a>
-                </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: theme.muted }}>
+                    See what changed based on your feedback
+                  </div>
+                </a>
               )}
             </>
           )}
