@@ -270,6 +270,11 @@ export default function SurveyPage({ params }: PageProps) {
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&display=swap"
         rel="stylesheet"
       />
+      <style>{`
+        textarea::placeholder, input::placeholder { color: #aaa9a0; opacity: 1; }
+        textarea:focus::placeholder, input:focus::placeholder { opacity: 0; }
+        textarea, input { caret-color: ${primaryColor}; }
+      `}</style>
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "40px 20px" }}>
         {/* Branded header */}
