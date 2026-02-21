@@ -43,11 +43,20 @@ const functions = getFunctions();
 // Organization Operations
 // ============================================================
 
-/** Create a new organization (calls Cloud Function for slug validation) */
+/** Create a new organization via Next.js API route (no Cloud Functions required) */
 export async function createOrganization(name: string, slug: string) {
-  const createOrg = httpsCallable(functions, "createOrganization");
-  const result = await createOrg({ name, slug });
-  return result.data as { orgId: string; slug: string };
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Must be signed in to create an organization.");
+
+  const res = await fetch("/api/org/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name, slug }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to create organization.");
+  return data as { orgId: string; slug: string };
 }
 
 /** Get org by slug (for public feedback form) */
