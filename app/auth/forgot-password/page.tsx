@@ -31,8 +31,15 @@ function ForgotPasswordForm() {
     try {
       await sendPasswordResetEmail(auth, email);
       setSent(true);
-    } catch {
-      setError("Couldn't send reset email. Check the address and try again.");
+    } catch (err: any) {
+      const code = err?.code || "";
+      if (code === "auth/user-not-found" || code === "auth/invalid-email") {
+        setError("No account found with that email address. Double-check the address or create a new account.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Too many attempts. Please wait a few minutes and try again.");
+      } else {
+        setError(`Couldn't send reset email (${code || "unknown error"}). Check the address and try again.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -72,8 +79,14 @@ function ForgotPasswordForm() {
               Check your inbox
             </h1>
             <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6 }}>
-              We sent a password reset link to <strong style={{ color: "#1a1a2e" }}>{email}</strong>.
-              Check your spam folder if it doesn&apos;t arrive in a minute.
+              If <strong style={{ color: "#1a1a2e" }}>{email}</strong> has an account,
+              you&apos;ll receive a reset link shortly. Check your spam folder if it doesn&apos;t arrive within a minute.
+            </p>
+            <p style={{ color: "#8a8578", fontSize: 13, lineHeight: 1.6, marginTop: 10 }}>
+              No email?{" "}
+              <a href="/auth/signup" style={{ color: "#2d6a6a", fontWeight: 600, textDecoration: "none" }}>
+                Create a new account →
+              </a>
             </p>
             <a href="/auth/login" style={{
               display: "inline-block", marginTop: 20,
