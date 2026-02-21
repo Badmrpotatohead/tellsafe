@@ -116,9 +116,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName });
 
-      // Send email verification
-      const { sendEmailVerification } = await import("firebase/auth");
-      await sendEmailVerification(cred.user);
+      // Send branded verification email via Resend (better deliverability than Firebase default)
+      try {
+        const token = await cred.user.getIdToken();
+        await fetch("/api/auth/verify-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ email: cred.user.email }),
+        });
+      } catch (verifyErr) {
+        // Non-fatal — user can resend from the banner
+        console.warn("Failed to send verification email:", verifyErr);
+      }
     } catch (err: any) {
       const message =
         err.code === "auth/email-already-in-use"

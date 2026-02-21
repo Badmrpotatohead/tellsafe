@@ -165,6 +165,67 @@ export async function sendNewFeedbackNotification(params: {
 }
 
 // ============================================================
+// Account: Email verification link
+// ============================================================
+export async function sendVerificationEmail(params: {
+  toEmail: string;
+  verificationLink: string;
+}) {
+  const { toEmail, verificationLink } = params;
+
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    to: toEmail,
+    subject: "Verify your TellSafe account",
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
+        <div style="background: #f8f6f1; border-radius: 16px; padding: 32px; border: 1px solid #e8e5de;">
+
+          <!-- Shield logo -->
+          <div style="text-align: center; margin-bottom: 24px;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #2d6a6a, #1a4a4a); font-size: 28px;">
+              🛡️
+            </div>
+          </div>
+
+          <h2 style="font-size: 22px; margin: 0 0 12px; color: #1a1a2e; text-align: center;">
+            Verify your email address
+          </h2>
+          <p style="font-size: 15px; color: #5a5650; line-height: 1.6; margin: 0 0 24px; text-align: center;">
+            You're almost set up on TellSafe. Click the button below to verify
+            your email and activate your account.
+          </p>
+
+          <!-- CTA button -->
+          <div style="text-align: center; margin-bottom: 24px;">
+            <a href="${verificationLink}"
+               style="display: inline-block; background: #2d6a6a; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 700;">
+              Verify my email →
+            </a>
+          </div>
+
+          <p style="font-size: 13px; color: #8a8578; line-height: 1.5; margin: 0 0 16px; text-align: center;">
+            This link expires in 24 hours. If the button doesn't work, copy and
+            paste the URL below into your browser:
+          </p>
+          <div style="background: white; border-radius: 10px; padding: 12px 16px; border: 1px solid #e8e5de; word-break: break-all; font-size: 12px; color: #5a5650; margin-bottom: 20px;">
+            ${verificationLink}
+          </div>
+
+          <div style="background: rgba(107, 91, 138, 0.08); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #6b5b8a; line-height: 1.5;">
+            🔒 If you didn't create a TellSafe account, you can safely ignore this email.
+          </div>
+        </div>
+        <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: 20px;">
+          — TellSafe &nbsp;·&nbsp;
+          <a href="https://tellsafe.app" style="color: #2d6a6a;">tellsafe.app</a>
+        </p>
+      </div>
+    `,
+  });
+}
+
+// ============================================================
 // Weekly Digest: Summary email to admins
 // ============================================================
 export async function sendWeeklyDigest(params: {

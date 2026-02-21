@@ -29,8 +29,8 @@ import type { AdminView } from "../../components/AdminSidebar";
 import { PLAN_LIMITS } from "../../types";
 import { createOrganization } from "../../lib/data";
 import EmailVerificationBanner from "../../components/EmailVerificationBanner";
-import { sendEmailVerification } from "firebase/auth";
 import { auth } from "../../lib/firebase";
+import { useToast } from "../../components/Toast";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -119,6 +119,7 @@ export default function AdminPage() {
 
 function AdminPageInner() {
   const { user, org, allOrgs, loading, setOrg, refreshOrg, reloadUser } = useAuth();
+  const { showToast, ToastContainer } = useToast();
   const [view, setView] = useState<AdminView>("inbox");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadFeedbackId, setThreadFeedbackId] = useState<string | null>(null);
@@ -168,10 +169,19 @@ function AdminPageInner() {
 
   const handleVerifResend = async () => {
     const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (!currentUser?.email) return;
     setVerifResendStatus("sending");
     try {
-      await sendEmailVerification(currentUser);
+      const token = await currentUser.getIdToken();
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: currentUser.email }),
+      });
+      if (!res.ok) throw new Error("non-ok response");
       setVerifResendStatus("sent");
     } catch {
       setVerifResendStatus("error");
@@ -503,7 +513,10 @@ function AdminPageInner() {
     try {
       const { getAuth } = await import("firebase/auth");
       const token = await getAuth().currentUser?.getIdToken();
-      if (!token) return alert("Please sign in to export.");
+      if (!token) {
+        showToast("Please sign in to export.", "error");
+        return;
+      }
 
       const res = await fetch(`/api/export?orgId=${orgId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -511,7 +524,8 @@ function AdminPageInner() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        return alert(data.error || "Export failed");
+        showToast(data.error || "Export failed.", "error");
+        return;
       }
 
       // Trigger download
@@ -526,9 +540,10 @@ function AdminPageInner() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      showToast("Export downloaded!", "success");
     } catch (err) {
       console.error("Export failed:", err);
-      alert("Export failed. Please try again.");
+      showToast("Export failed. Please try again.", "error");
     }
   };
 
@@ -553,6 +568,7 @@ function AdminPageInner() {
           rel="stylesheet"
         />
         <style>{adminResponsiveCss}</style>
+        <ToastContainer />
         <div style={{ display: "flex", minHeight: "100vh" }}>
           <AdminSidebar
             orgId={orgId}
@@ -698,7 +714,8 @@ function AdminPageInner() {
                 <button
                   onClick={async () => {
                     const count = await batchArchiveResolved(orgId);
-                    if (count === 0) alert("No resolved feedback to archive.");
+                    if (count === 0) showToast("No resolved feedback to archive.", "info");
+                    else showToast(`${count} item${count !== 1 ? "s" : ""} archived.`, "success");
                   }}
                   style={{
                     background: "none",
@@ -880,6 +897,7 @@ function AdminPageInner() {
         rel="stylesheet"
       />
       <style>{adminResponsiveCss}</style>
+      <ToastContainer />
       <div style={{ display: "flex", minHeight: "100vh", background: "#f2f0eb" }}>
         <AdminSidebar
           orgId={orgId}

@@ -2,14 +2,14 @@
 // TellSafe v1.3 — Survey Results Component
 // ============================================================
 // Shows aggregated results for a survey with visualizations
-// per question type.
+// per question type. Handles anonymous, identified, and relay
+// privacy modes — including mixed-mode surveys.
 
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useBrand } from "./BrandProvider";
 import type { Survey, SurveyQuestion, SurveyResponse, SurveyResponseAnswer } from "../types/survey";
-import { adminDb } from "../lib/firebase-admin";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -20,6 +20,29 @@ interface Props {
   onBack: () => void;
 }
 
+// ── Privacy badge ──────────────────────────────────────────────
+const PRIVACY_BADGES: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  anonymous:  { label: "Anonymous",  icon: "🎭", color: "#6b7280", bg: "#f3f4f6" },
+  identified: { label: "Identified", icon: "👋", color: "#2d6a6a", bg: "#f0fdf4" },
+  relay:      { label: "Relay",      icon: "🔒", color: "#7c3aed", bg: "#f5f3ff" },
+};
+
+function PrivacyBadge({ responseType }: { responseType: string }) {
+  const badge = PRIVACY_BADGES[responseType] ?? PRIVACY_BADGES.anonymous;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "2px 8px", borderRadius: 100,
+      fontSize: 11, fontWeight: 700,
+      color: badge.color, background: badge.bg,
+      flexShrink: 0,
+    }}>
+      {badge.icon} {badge.label}
+    </span>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────
 export default function SurveyResults({ orgId, survey, onBack }: Props) {
   const { theme } = useBrand();
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
@@ -31,10 +54,8 @@ export default function SurveyResults({ orgId, survey, onBack }: Props) {
 
   const fetchResponses = async () => {
     try {
-      const token = await (await import("firebase/auth")).getAuth().currentUser?.getIdToken();
-      // We'll fetch via a simple client-side Firestore read
       const { getFirestore, collection, getDocs, query, orderBy } = await import("firebase/firestore");
-      const { getApps, getApp } = await import("firebase/app");
+      const { getApp } = await import("firebase/app");
       const db = getFirestore(getApp());
 
       const snap = await getDocs(
@@ -54,16 +75,39 @@ export default function SurveyResults({ orgId, survey, onBack }: Props) {
     }
   };
 
-  // --- Aggregate data per question ---
+  // ── Privacy breakdown ──────────────────────────────────────
+  const privacyBreakdown = useMemo(() => {
+    const counts: Record<string, number> = { anonymous: 0, identified: 0, relay: 0 };
+    responses.forEach((r) => {
+      const t = r.responseType ?? "anonymous";
+      counts[t] = (counts[t] || 0) + 1;
+    });
+    return counts;
+  }, [responses]);
+
+  // ── Aggregate data per question ────────────────────────────
   const questionResults = useMemo(() => {
     return survey.questions.map((q) => {
-      const answers = responses
-        .map((r) => r.answers.find((a) => a.questionId === q.id))
-        .filter(Boolean) as SurveyResponseAnswer[];
+      // Pair each answer with its parent response for privacy metadata
+      const answersWithMeta = responses
+        .map((r) => {
+          const a = r.answers.find((a) => a.questionId === q.id);
+          return a ? { answer: a, response: r } : null;
+        })
+        .filter(Boolean) as { answer: SurveyResponseAnswer; response: SurveyResponse }[];
 
-      return { question: q, answers };
+      return { question: q, answersWithMeta };
     });
   }, [survey.questions, responses]);
+
+  const allowedTypes: string[] =
+    Array.isArray(survey.allowedResponseTypes) && survey.allowedResponseTypes.length > 0
+      ? survey.allowedResponseTypes
+      : [survey.responseType ?? "anonymous"];
+
+  const isMixedMode = allowedTypes.length > 1;
+  const identifiedResponses = responses.filter((r) => r.responseType === "identified" && (r.respondentName || r.respondentEmail));
+  const relayResponses = responses.filter((r) => r.responseType === "relay");
 
   if (loading) {
     return (
@@ -95,106 +139,101 @@ export default function SurveyResults({ orgId, survey, onBack }: Props) {
       {responses.length === 0 ? (
         <div style={{ background: "#fff", borderRadius: 16, padding: 48, textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
-          <h3 style={{ fontFamily: displayFont, fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-            No responses yet
-          </h3>
-          <p style={{ color: theme.muted, fontSize: 13 }}>
-            Share your survey link to start collecting responses.
-          </p>
+          <h3 style={{ fontFamily: displayFont, fontSize: 18, fontWeight: 600, marginBottom: 8 }}>No responses yet</h3>
+          <p style={{ color: theme.muted, fontSize: 13 }}>Share your survey link to start collecting responses.</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {questionResults.map(({ question, answers }, qi) => (
-            <div
-              key={question.id}
-              style={{
-                background: "#fff",
-                borderRadius: 14,
-                padding: 22,
-                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-              }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
-                Q{qi + 1} · {answers.length} answer{answers.length !== 1 ? "s" : ""}
+        <>
+          {/* ── Privacy breakdown pill row ── */}
+          <div style={{
+            background: "#fff",
+            borderRadius: 14,
+            padding: "14px 20px",
+            marginBottom: 18,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            display: "flex",
+            alignItems: "center",
+            gap: 20,
+            flexWrap: "wrap",
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: "0.05em", flexShrink: 0 }}>
+              Response breakdown
+            </span>
+            {Object.entries(privacyBreakdown).map(([type, count]) => {
+              if (count === 0) return null;
+              return (
+                <div key={type} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                  <PrivacyBadge responseType={type} />
+                  <span style={{ fontWeight: 700, color: theme.ink }}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Question results ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {questionResults.map(({ question, answersWithMeta }, qi) => (
+              <div
+                key={question.id}
+                style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+                  Q{qi + 1} · {answersWithMeta.length} answer{answersWithMeta.length !== 1 ? "s" : ""}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 14px" }}>{question.text}</h3>
+
+                {question.type === "rating" && (
+                  <RatingResults question={question} answers={answersWithMeta.map((m) => m.answer)} theme={theme} />
+                )}
+                {question.type === "multiple_choice" && (
+                  <MultipleChoiceResults question={question} answers={answersWithMeta.map((m) => m.answer)} theme={theme} />
+                )}
+                {question.type === "yes_no" && (
+                  <YesNoResults question={question} answers={answersWithMeta.map((m) => m.answer)} theme={theme} />
+                )}
+                {question.type === "free_text" && (
+                  <FreeTextResults answersWithMeta={answersWithMeta} theme={theme} isMixedMode={isMixedMode} />
+                )}
               </div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 14px" }}>
-                {question.text}
-              </h3>
+            ))}
+          </div>
 
-              {/* Rating Results */}
-              {question.type === "rating" && (
-                <RatingResults question={question} answers={answers} theme={theme} />
-              )}
-
-              {/* Multiple Choice Results */}
-              {question.type === "multiple_choice" && (
-                <MultipleChoiceResults question={question} answers={answers} theme={theme} />
-              )}
-
-              {/* Yes/No Results */}
-              {question.type === "yes_no" && (
-                <YesNoResults question={question} answers={answers} theme={theme} />
-              )}
-
-              {/* Free Text Results */}
-              {question.type === "free_text" && (
-                <FreeTextResults answers={answers} theme={theme} />
-              )}
+          {/* ── Identified respondents list ── */}
+          {identifiedResponses.length > 0 && (
+            <div style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginTop: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                👋 Identified Respondents ({identifiedResponses.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {identifiedResponses.map((r, i) => (
+                  <div key={r.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: theme.paperWarm, borderRadius: 8, fontSize: 13 }}>
+                    <span style={{ fontWeight: 600, color: theme.ink }}>{r.respondentName || "—"}</span>
+                    {r.respondentEmail && <span style={{ color: theme.muted }}>{r.respondentEmail}</span>}
+                    <span style={{ marginLeft: "auto", fontSize: 11, color: theme.muted }}>{new Date(r.submittedAt).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+
+          {/* ── Relay responses note — never show emails ── */}
+          {relayResponses.length > 0 && (
+            <div style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginTop: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                🔒 Relay Responses ({relayResponses.length})
+              </div>
+              <p style={{ fontSize: 13, color: theme.muted, margin: 0 }}>
+                {relayResponses.length} encrypted response{relayResponses.length !== 1 ? "s" : ""}. Respondent emails are encrypted and never visible here — reply anonymously via the <strong>Inbox</strong> tab.
+              </p>
+            </div>
+          )}
+        </>
       )}
-
-      {/* Respondents section — respects multi-type surveys */}
-      {(() => {
-        const allowedTypes: string[] = survey.allowedResponseTypes?.length
-          ? survey.allowedResponseTypes
-          : [survey.responseType ?? "anonymous"];
-        const hasIdentified = allowedTypes.includes("identified");
-        const hasRelay = allowedTypes.includes("relay");
-
-        const identifiedResponses = responses.filter((r: any) => r.respondentName || r.respondentEmail);
-        const relayResponses = responses.filter((r: any) => r.encryptedEmail || r.responseType === "relay");
-
-        return (
-          <>
-            {/* Identified respondents list */}
-            {responses.length > 0 && hasIdentified && identifiedResponses.length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginTop: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  👋 Identified Respondents ({identifiedResponses.length})
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {identifiedResponses.map((r: any, i: number) => (
-                    <div key={r.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: theme.paperWarm, borderRadius: 8, fontSize: 13 }}>
-                      <span style={{ fontWeight: 600, color: theme.ink }}>{r.respondentName || "—"}</span>
-                      {r.respondentEmail && <span style={{ color: theme.muted }}>{r.respondentEmail}</span>}
-                      <span style={{ marginLeft: "auto", fontSize: 11, color: theme.muted }}>{new Date(r.submittedAt).toLocaleDateString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Relay responses note */}
-            {responses.length > 0 && hasRelay && relayResponses.length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginTop: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  🔒 Relay Responses ({relayResponses.length})
-                </div>
-                <p style={{ fontSize: 13, color: theme.muted, margin: 0 }}>
-                  {relayResponses.length} encrypted response{relayResponses.length !== 1 ? "s" : ""}. Emails are not visible here — reply to respondents via the <strong>Inbox</strong> tab.
-                </p>
-              </div>
-            )}
-          </>
-        );
-      })()}
     </div>
   );
 }
 
-// --- Rating visualization ---
+// ── Rating visualization ───────────────────────────────────────
 function RatingResults({ question, answers, theme }: { question: any; answers: SurveyResponseAnswer[]; theme: any }) {
   const values = answers.map((a) => Number(a.value)).filter((v) => !isNaN(v));
   const avg = values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0;
@@ -206,9 +245,7 @@ function RatingResults({ question, answers, theme }: { question: any; answers: S
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <div style={{ fontSize: 36, fontWeight: 700, fontFamily: displayFont, color: theme.ink }}>
-          {avg.toFixed(1)}
-        </div>
+        <div style={{ fontSize: 36, fontWeight: 700, fontFamily: displayFont, color: theme.ink }}>{avg.toFixed(1)}</div>
         <div>
           <div style={{ display: "flex", gap: 2 }}>
             {Array.from({ length: question.maxRating }, (_, i) => (
@@ -218,7 +255,6 @@ function RatingResults({ question, answers, theme }: { question: any; answers: S
           <div style={{ fontSize: 11, color: theme.muted }}>{values.length} ratings</div>
         </div>
       </div>
-      {/* Distribution bars */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {Array.from({ length: question.maxRating }, (_, i) => {
           const rating = question.maxRating - i;
@@ -238,7 +274,7 @@ function RatingResults({ question, answers, theme }: { question: any; answers: S
   );
 }
 
-// --- Multiple Choice visualization ---
+// ── Multiple Choice visualization ──────────────────────────────
 function MultipleChoiceResults({ question, answers, theme }: { question: any; answers: SurveyResponseAnswer[]; theme: any }) {
   const counts: Record<string, number> = {};
   question.options.forEach((o: string) => { counts[o] = 0; });
@@ -276,17 +312,13 @@ function MultipleChoiceResults({ question, answers, theme }: { question: any; an
   );
 }
 
-// --- Yes/No visualization ---
+// ── Yes/No visualization ───────────────────────────────────────
 function YesNoResults({ question, answers, theme }: { question: any; answers: SurveyResponseAnswer[]; theme: any }) {
   const yes = answers.filter((a) => a.value === true || a.value === "yes").length;
   const no = answers.filter((a) => a.value === false || a.value === "no").length;
   const total = yes + no;
   const yesPct = total > 0 ? Math.round((yes / total) * 100) : 0;
-
-  // Collect follow-up texts
-  const followUps = answers
-    .filter((a) => a.followUpText?.trim())
-    .map((a) => a.followUpText!);
+  const followUps = answers.filter((a) => a.followUpText?.trim()).map((a) => a.followUpText!);
 
   return (
     <div>
@@ -300,12 +332,10 @@ function YesNoResults({ question, answers, theme }: { question: any; answers: Su
           <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>No ({no})</div>
         </div>
       </div>
-      {/* Stacked bar */}
       <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", height: 12, marginBottom: 12 }}>
         <div style={{ flex: yes, background: "#059669", opacity: 0.75 }} />
         <div style={{ flex: no || 0.01, background: "#dc2626", opacity: 0.75 }} />
       </div>
-      {/* Follow-ups */}
       {followUps.length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: theme.muted, marginBottom: 6, textTransform: "uppercase" }}>
@@ -317,9 +347,7 @@ function YesNoResults({ question, answers, theme }: { question: any; answers: Su
             </div>
           ))}
           {followUps.length > 10 && (
-            <div style={{ fontSize: 11, color: theme.muted, marginTop: 4 }}>
-              + {followUps.length - 10} more
-            </div>
+            <div style={{ fontSize: 11, color: theme.muted, marginTop: 4 }}>+ {followUps.length - 10} more</div>
           )}
         </div>
       )}
@@ -327,23 +355,64 @@ function YesNoResults({ question, answers, theme }: { question: any; answers: Su
   );
 }
 
-// --- Free Text listing ---
-function FreeTextResults({ answers, theme }: { answers: SurveyResponseAnswer[]; theme: any }) {
-  const texts = answers.map((a) => String(a.value)).filter((t) => t.trim());
+// ── Free Text listing — privacy badges + identified name ───────
+function FreeTextResults({
+  answersWithMeta,
+  theme,
+  isMixedMode,
+}: {
+  answersWithMeta: { answer: SurveyResponseAnswer; response: SurveyResponse }[];
+  theme: any;
+  isMixedMode: boolean;
+}) {
+  const entries = answersWithMeta
+    .map(({ answer, response }) => ({
+      text: String(answer.value),
+      responseType: response.responseType ?? "anonymous",
+      respondentName: response.respondentName,
+      submittedAt: response.submittedAt,
+    }))
+    .filter((e) => e.text.trim());
 
-  if (texts.length === 0) {
+  if (entries.length === 0) {
     return <div style={{ fontSize: 13, color: theme.muted }}>No responses</div>;
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {texts.slice(0, 20).map((text, i) => (
-        <div key={i} style={{ fontSize: 13, color: theme.ink, padding: "10px 14px", background: theme.paperWarm, borderRadius: 10, lineHeight: 1.5 }}>
-          {text}
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {entries.slice(0, 20).map((entry, i) => (
+        <div
+          key={i}
+          style={{
+            fontSize: 13,
+            color: theme.ink,
+            padding: "10px 14px",
+            background: theme.paperWarm,
+            borderRadius: 10,
+            lineHeight: 1.5,
+          }}
+        >
+          {/* Metadata row: name + badge, shown when relevant */}
+          {(isMixedMode || entry.responseType === "identified") && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              {entry.responseType === "identified" && entry.respondentName && (
+                <span style={{ fontSize: 12, fontWeight: 700, color: theme.ink }}>
+                  {entry.respondentName}
+                </span>
+              )}
+              {entry.responseType === "relay" && (
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#7c3aed" }}>
+                  Relay respondent
+                </span>
+              )}
+              {isMixedMode && <PrivacyBadge responseType={entry.responseType} />}
+            </div>
+          )}
+          {entry.text}
         </div>
       ))}
-      {texts.length > 20 && (
-        <div style={{ fontSize: 11, color: theme.muted }}>+ {texts.length - 20} more responses</div>
+      {entries.length > 20 && (
+        <div style={{ fontSize: 11, color: theme.muted }}>+ {entries.length - 20} more responses</div>
       )}
     </div>
   );

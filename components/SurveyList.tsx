@@ -11,6 +11,8 @@ import { useBrand } from "./BrandProvider";
 import type { Survey, SurveyStatus } from "../types/survey";
 import { auth } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import ConfirmModal, { useConfirmModal } from "./ConfirmModal";
+import { useToast } from "./Toast";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -28,6 +30,10 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Modal + toast
+  const [modalState, showModal, hideModal] = useConfirmModal();
+  const { showToast, ToastContainer } = useToast();
 
   const fetchSurveys = async () => {
     try {
@@ -72,27 +78,38 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
     }
   };
 
-  const deleteSurvey = async (surveyId: string) => {
-    if (!confirm("Delete this survey and all its responses? This cannot be undone.")) return;
-    setActionLoading(surveyId);
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      await fetch(`/api/survey?orgId=${orgId}&surveyId=${surveyId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await fetchSurveys();
-    } catch (err) {
-      console.error("Delete failed:", err);
-    } finally {
-      setActionLoading(null);
-    }
+  const deleteSurvey = (surveyId: string, surveyTitle: string) => {
+    showModal({
+      title: "Delete survey?",
+      description: `"${surveyTitle}" and all its responses will be permanently deleted. This cannot be undone.`,
+      variant: "destructive",
+      confirmLabel: "Delete survey",
+      onConfirm: async () => {
+        setActionLoading(surveyId);
+        try {
+          const token = await auth.currentUser?.getIdToken();
+          await fetch(`/api/survey?orgId=${orgId}&surveyId=${surveyId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          await fetchSurveys();
+          showToast("Survey deleted.", "success");
+        } catch (err) {
+          console.error("Delete failed:", err);
+          showToast("Failed to delete survey. Try again.", "error");
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    });
   };
 
   const copyLink = (surveyId: string) => {
     const url = `${window.location.origin}/${orgSlug}/survey/${surveyId}`;
     navigator.clipboard.writeText(url).then(() => {
-      alert("Survey link copied!");
+      showToast("Survey link copied!", "success");
+    }).catch(() => {
+      showToast("Could not copy link.", "error");
     });
   };
 
@@ -113,6 +130,15 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
 
   return (
     <div style={{ padding: 28, fontFamily: fontStack }}>
+      {/* Confirm modal */}
+      <ConfirmModal
+        {...modalState}
+        onCancel={hideModal}
+      />
+
+      {/* Toast notifications */}
+      <ToastContainer />
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h1 style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600, margin: 0 }}>
           Surveys
@@ -246,7 +272,10 @@ export default function SurveyList({ orgId, orgSlug, onCreateNew, onEdit, onView
                       <button onClick={() => updateStatus(s.id, "active")} style={actionBtnStyle(theme)}>↩ Reopen</button>
                     </>
                   )}
-                  <button onClick={() => deleteSurvey(s.id)} style={{ ...actionBtnStyle(theme), color: "#dc2626", borderColor: "#fecaca" }}>
+                  <button
+                    onClick={() => deleteSurvey(s.id, s.title)}
+                    style={{ ...actionBtnStyle(theme), color: "#dc2626", borderColor: "#fecaca" }}
+                  >
                     🗑 Delete
                   </button>
                 </div>
@@ -272,5 +301,3 @@ function actionBtnStyle(theme: any, bg?: string, color?: string): React.CSSPrope
     fontFamily: "'Outfit', system-ui, sans-serif",
   };
 }
-
-

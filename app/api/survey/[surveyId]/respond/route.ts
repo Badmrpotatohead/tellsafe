@@ -59,6 +59,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const orgSnap = await adminDb.collection("organizations").doc(orgId).get();
     const org = orgSnap.exists ? orgSnap.data() : null;
 
+    // Build the allowed types list for the public form
+    const allowedResponseTypes: string[] =
+      Array.isArray(survey.allowedResponseTypes) && survey.allowedResponseTypes.length > 0
+        ? survey.allowedResponseTypes
+        : [survey.responseType ?? "anonymous"];
+
     return NextResponse.json({
       survey: {
         id: survey.id,
@@ -66,6 +72,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         description: survey.description,
         questions: survey.questions,
         responseType: survey.responseType ?? "anonymous",
+        allowedResponseTypes,
       },
       org: org
         ? {
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { surveyId } = context.params;
     const body = await request.json();
-    const { orgId, answers, respondentName, respondentEmail, relayEmail } = body;
+    const { orgId, answers, responseType: chosenType, respondentName, respondentEmail, relayEmail } = body;
 
     if (!orgId || !answers?.length) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -107,7 +114,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const survey = surveySnap.data() as Survey;
-    const responseType = survey.responseType ?? "anonymous";
+
+    // Determine the allowed types for this survey
+    const allowedTypes: string[] =
+      Array.isArray(survey.allowedResponseTypes) && survey.allowedResponseTypes.length > 0
+        ? survey.allowedResponseTypes
+        : [survey.responseType ?? "anonymous"];
+
+    // Validate that the respondent's chosen type is actually allowed
+    const responseType: string = chosenType && allowedTypes.includes(chosenType)
+      ? chosenType
+      : allowedTypes[0];
 
     if (survey.status !== "active") {
       return NextResponse.json({ error: "This survey is not accepting responses" }, { status: 403 });

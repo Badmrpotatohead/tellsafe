@@ -9,7 +9,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { sendEmailVerification } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuth } from "./AuthProvider";
 
@@ -21,10 +20,19 @@ export default function EmailVerificationBanner() {
 
   const handleResend = async () => {
     const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (!currentUser?.email) return;
     setStatus("sending");
     try {
-      await sendEmailVerification(currentUser);
+      const token = await currentUser.getIdToken();
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: currentUser.email }),
+      });
+      if (!res.ok) throw new Error("non-ok response");
       setStatus("sent");
     } catch (err: any) {
       console.error("Failed to send verification email:", err);
