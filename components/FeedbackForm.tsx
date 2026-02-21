@@ -401,19 +401,27 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
             </div>
           )}
         </div>
-        <h1
-          style={{
-            fontFamily: displayFont,
-            fontSize: kioskMode ? 36 : 28,
-            fontWeight: 600,
-            lineHeight: 1.25,
-            marginBottom: 10,
-            color: theme.ink,
-          }}
-        >
-          How would you like to share with{" "}
-          <span style={{ color: theme.primary }}>{orgName}</span>?
-        </h1>
+        {org.plan !== "free" && (
+          <h1
+            style={{
+              fontFamily: displayFont,
+              fontSize: kioskMode ? 36 : 28,
+              fontWeight: 600,
+              lineHeight: 1.25,
+              marginBottom: 10,
+              color: theme.ink,
+            }}
+          >
+            {org.heroHeading ? (
+              org.heroHeading
+            ) : (
+              <>
+                How would you like to share with{" "}
+                <span style={{ color: theme.primary }}>{orgName}</span>?
+              </>
+            )}
+          </h1>
+        )}
         <p style={{ fontSize: kioskMode ? 17 : 15, color: theme.muted, maxWidth: 400, margin: "0 auto" }}>
           {tagline}
         </p>

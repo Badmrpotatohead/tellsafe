@@ -40,6 +40,7 @@ export default function BrandingSettings({ orgId }: Props) {
 
   const [name, setName] = useState(org?.name || "");
   const [tagline, setTagline] = useState(org?.tagline || "");
+  const [heroHeading, setHeroHeading] = useState(org?.heroHeading || "");
   const [primaryColor, setPrimaryColor] = useState(org?.primaryColor || "#2d6a6a");
   const [accentColor, setAccentColor] = useState(org?.accentColor || "#c05d3b");
   const [categories, setCategories] = useState<Category[]>(org?.categories || []);
@@ -134,6 +135,7 @@ export default function BrandingSettings({ orgId }: Props) {
       await updateOrganization(orgId, {
         name,
         tagline,
+        heroHeading: heroHeading.trim() || null,
         primaryColor,
         accentColor,
         categories,
@@ -407,6 +409,27 @@ export default function BrandingSettings({ orgId }: Props) {
           placeholder="Your voice matters..."
           style={inputStyle}
         />
+        <div style={{ fontSize: 11, color: theme.muted, marginTop: 4 }}>
+          Shown below your logo on the feedback form.
+        </div>
+      </div>
+
+      {/* Hero Heading — Community+ */}
+      <div style={{ marginBottom: 22, opacity: brandingLocked ? 0.5 : 1, pointerEvents: brandingLocked ? "none" : "auto" }}>
+        <label style={labelStyle}>
+          Form Heading
+          {brandingLocked && <span style={{ color: theme.violet, fontWeight: 500, marginLeft: 6 }}>Community+</span>}
+        </label>
+        <input
+          value={heroHeading}
+          onChange={(e) => setHeroHeading(e.target.value)}
+          placeholder={`How would you like to share with ${org?.name || "us"}?`}
+          style={inputStyle}
+          disabled={brandingLocked}
+        />
+        <div style={{ fontSize: 11, color: theme.muted, marginTop: 4 }}>
+          The main heading above the form. Leave blank to use the default.
+        </div>
       </div>
 
       {/* Colors */}

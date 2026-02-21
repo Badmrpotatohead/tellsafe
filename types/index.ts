@@ -75,6 +75,7 @@ export interface Organization {
   primaryColor: string;
   accentColor: string;
   tagline: string;
+  heroHeading?: string | null; // Custom h1 on the feedback form (Community/Pro); falls back to default if null
   categories: Category[];
   plan: Plan;
   billingInterval: "month" | "year" | null; // null for free plan
