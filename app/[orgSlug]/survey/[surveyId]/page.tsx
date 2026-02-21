@@ -153,11 +153,21 @@ export default function SurveyPage({ params }: PageProps) {
 
   const primaryColor = org?.primaryColor || "#2d6a6a";
   const accentColor = org?.accentColor || "#c05d3b";
+  const primaryGlow = `${primaryColor}18`;
+  const accentGlow = `${accentColor}14`;
+  const orgInitials = (org?.name || "?")
+    .split(" ")
+    .map((w: string) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const pageBackground = `radial-gradient(ellipse 80% 50% at 20% 10%, ${primaryGlow}, transparent), radial-gradient(ellipse 50% 40% at 80% 80%, ${accentGlow}, transparent), #f8f6f1`;
 
   // --- Loading ---
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: "#f2f0eb" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: pageBackground }}>
         <div style={{ textAlign: "center", color: "#8a8578" }}>Loading survey...</div>
       </div>
     );
@@ -166,7 +176,7 @@ export default function SurveyPage({ params }: PageProps) {
   // --- Error ---
   if (loadError) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: "#f2f0eb" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: pageBackground }}>
         <div style={{ textAlign: "center", maxWidth: 360 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
           <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>{loadError}</h2>
@@ -181,29 +191,38 @@ export default function SurveyPage({ params }: PageProps) {
   // --- Submitted ---
   if (submitted) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: "#f2f0eb" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontStack, background: pageBackground }}>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&display=swap" rel="stylesheet" />
         <div style={{ background: "#fff", borderRadius: 24, padding: 48, maxWidth: 440, textAlign: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
-          <h2 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8 }}>
+          {/* Branded logo */}
+          <div style={{ marginBottom: 20 }}>
+            {org?.logoUrl ? (
+              <img src={org.logoUrl} alt={org.name} style={{ height: 48, objectFit: "contain", margin: "0 auto" }} />
+            ) : (
+              <div style={{
+                width: 56, height: 56, borderRadius: 16, margin: "0 auto",
+                background: `linear-gradient(135deg, ${primaryColor}, ${accentColor})`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fff", fontSize: 20, fontWeight: 700, fontFamily: fontStack,
+              }}>{orgInitials}</div>
+            )}
+          </div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+          <h2 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8, color: "#1a1a2e" }}>
             Thank you!
           </h2>
           <p style={{ color: "#5a5650", fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
-            Your response has been submitted. Your feedback helps make {org?.name || "our community"} better.
+            Your response has been submitted. Your feedback helps make <strong style={{ color: primaryColor }}>{org?.name || "our community"}</strong> better.
           </p>
           <a
             href={`/${orgSlug}`}
             style={{
-              display: "inline-block",
-              padding: "12px 28px",
-              background: primaryColor,
-              color: "#fff",
-              borderRadius: 10,
-              textDecoration: "none",
-              fontWeight: 700,
-              fontSize: 14,
+              display: "inline-block", padding: "12px 28px",
+              background: primaryColor, color: "#fff", borderRadius: 10,
+              textDecoration: "none", fontWeight: 700, fontSize: 14,
             }}
           >
-            Submit Feedback →
+            Share Feedback →
           </a>
         </div>
       </div>
@@ -212,26 +231,43 @@ export default function SurveyPage({ params }: PageProps) {
 
   // --- Survey Form ---
   return (
-    <div style={{ minHeight: "100vh", background: "#f2f0eb", fontFamily: fontStack }}>
+    <div style={{ minHeight: "100vh", background: pageBackground, fontFamily: fontStack }}>
       <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&display=swap"
         rel="stylesheet"
       />
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "40px 20px" }}>
-        {/* Header */}
+        {/* Branded header */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          {org?.logoUrl && (
-            <img src={org.logoUrl} alt="" style={{ height: 40, marginBottom: 12, objectFit: "contain" }} />
-          )}
-          <h1 style={{ fontFamily: displayFont, fontSize: 28, fontWeight: 600, marginBottom: 6, color: "#1a1a2e" }}>
+          {/* Logo or initials */}
+          <div style={{ marginBottom: 16 }}>
+            {org?.logoUrl ? (
+              <img src={org.logoUrl} alt={org.name} style={{ height: 52, objectFit: "contain", margin: "0 auto", display: "block" }} />
+            ) : (
+              <div style={{
+                width: 56, height: 56, borderRadius: 16, margin: "0 auto",
+                background: `linear-gradient(135deg, ${primaryColor}, ${accentColor})`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fff", fontSize: 20, fontWeight: 700,
+              }}>{orgInitials}</div>
+            )}
+          </div>
+          {/* Org name */}
+          <div style={{ fontSize: 13, fontWeight: 600, color: primaryColor, marginBottom: 12, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            {org?.name}
+          </div>
+          {/* Colored bar */}
+          <div style={{ height: 3, borderRadius: 2, background: `linear-gradient(90deg, ${primaryColor}, ${accentColor})`, maxWidth: 280, margin: "0 auto 20px" }} />
+          {/* Survey title */}
+          <h1 style={{ fontFamily: displayFont, fontSize: 28, fontWeight: 600, marginBottom: 8, color: "#1a1a2e", lineHeight: 1.25 }}>
             {survey.title}
           </h1>
           {survey.description && (
-            <p style={{ color: "#5a5650", fontSize: 15, lineHeight: 1.5 }}>{survey.description}</p>
+            <p style={{ color: "#5a5650", fontSize: 15, lineHeight: 1.6, maxWidth: 480, margin: "0 auto" }}>{survey.description}</p>
           )}
-          <div style={{ fontSize: 12, color: "#8a8578", marginTop: 8 }}>
-            {org?.name} · {survey.questions.length} questions
+          <div style={{ fontSize: 12, color: "#8a8578", marginTop: 10 }}>
+            {survey.questions.length} question{survey.questions.length !== 1 ? "s" : ""}
           </div>
         </div>
 
@@ -463,8 +499,10 @@ export default function SurveyPage({ params }: PageProps) {
         </button>
 
         {/* Footer */}
-        <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: "#aaa" }}>
-          Powered by <a href="/" style={{ color: primaryColor, textDecoration: "none" }}>TellSafe</a>
+        <div style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: "#aaa" }}>
+          Powered by <a href="/" style={{ color: primaryColor, textDecoration: "none", fontWeight: 600 }}>TellSafe</a>
+          {" · "}
+          <a href={`/${orgSlug}`} style={{ color: "#aaa", textDecoration: "none" }}>Share feedback instead →</a>
         </div>
       </div>
     </div>
