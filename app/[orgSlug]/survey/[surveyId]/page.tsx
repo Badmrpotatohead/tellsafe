@@ -110,10 +110,12 @@ export default function SurveyPage({ params }: PageProps) {
   };
 
   const handleSubmit = async () => {
-    // Determine effective response type
-    const allowedTypes: string[] = survey.allowedResponseTypes?.length
+    // Determine effective response type (always in canonical order: identified → anonymous → relay)
+    const TYPE_ORDER = ["identified", "anonymous", "relay"];
+    const allowedTypes: string[] = (survey.allowedResponseTypes?.length
       ? survey.allowedResponseTypes
-      : [survey.responseType ?? "anonymous"];
+      : [survey.responseType ?? "anonymous"]
+    ).slice().sort((a, b) => TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b));
     const responseType = allowedTypes.length > 1
       ? (chosenResponseType ?? allowedTypes[0])
       : allowedTypes[0];
@@ -525,9 +527,11 @@ export default function SurveyPage({ params }: PageProps) {
 
         {/* Respondent info — varies by responseType. Multi-type surveys show a picker first. */}
         {(() => {
-          const allowedTypes: string[] = survey.allowedResponseTypes?.length
+          const TYPE_ORDER = ["identified", "anonymous", "relay"];
+          const allowedTypes: string[] = (survey.allowedResponseTypes?.length
             ? survey.allowedResponseTypes
-            : [survey.responseType ?? "anonymous"];
+            : [survey.responseType ?? "anonymous"]
+          ).slice().sort((a, b) => TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b));
           const isMulti = allowedTypes.length > 1;
           const activeType = isMulti ? chosenResponseType : allowedTypes[0];
 
