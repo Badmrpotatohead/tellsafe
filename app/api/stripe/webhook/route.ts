@@ -60,15 +60,25 @@ export async function POST(request: NextRequest) {
           break;
         }
 
+        // Fetch the subscription to get trial_end (if any)
+        let trialEndsAt: string | null = null;
+        if (session.subscription) {
+          const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+          if (sub.trial_end) {
+            trialEndsAt = new Date(sub.trial_end * 1000).toISOString();
+          }
+        }
+
         await adminDb.collection("organizations").doc(orgId).update({
           stripeCustomerId: session.customer as string,
           stripeSubscriptionId: session.subscription as string,
           plan,
           billingInterval: interval,
+          trialEndsAt,
           updatedAt: new Date().toISOString(),
         });
 
-        console.log(`[stripe/webhook] Org ${orgId} upgraded to ${plan} (${interval})`);
+        console.log(`[stripe/webhook] Org ${orgId} upgraded to ${plan} (${interval})${trialEndsAt ? ` — trial ends ${trialEndsAt}` : ""}`);
         break;
       }
 
@@ -89,10 +99,16 @@ export async function POST(request: NextRequest) {
         // Derive interval from Stripe directly — covers portal-driven switches too
         const interval = (priceItem?.price?.recurring?.interval as "month" | "year") || "month";
 
+        // Sync trial_end — null once they've paid or trial expired
+        const trialEndsAt = subscription.trial_end
+          ? new Date(subscription.trial_end * 1000).toISOString()
+          : null;
+
         if (plan) {
           await adminDb.collection("organizations").doc(orgId).update({
             plan,
             billingInterval: interval,
+            trialEndsAt,
             updatedAt: new Date().toISOString(),
           });
           console.log(`[stripe/webhook] Org ${orgId} subscription updated to ${plan} (${interval})`);
@@ -114,14 +130,25 @@ export async function POST(request: NextRequest) {
           break;
         }
 
+        // Downgrade to free — whether trial expired without payment or they cancelled
         await adminDb.collection("organizations").doc(orgId).update({
           plan: "free",
           billingInterval: null,
           stripeSubscriptionId: null,
+          trialEndsAt: null,
           updatedAt: new Date().toISOString(),
         });
 
         console.log(`[stripe/webhook] Org ${orgId} downgraded to free (subscription deleted)`);
+        break;
+      }
+
+      // Stripe fires this ~3 days before a trial ends (configurable in Stripe dashboard).
+      // The actual downgrade happens via customer.subscription.deleted above.
+      case "customer.subscription.trial_will_end": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const orgId = subscription.metadata?.orgId;
+        console.log(`[stripe/webhook] Trial ending soon for org ${orgId}`);
         break;
       }
 

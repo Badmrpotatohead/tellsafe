@@ -57,6 +57,10 @@ export async function POST(request: NextRequest) {
     }
     const orgData = orgDoc.data()!;
 
+    // Only give a trial if the org has never had a paid subscription before
+    const hasHadTrial = !!orgData.trialEndsAt || !!orgData.stripeSubscriptionId;
+    const trialDays = hasHadTrial ? undefined : 30;
+
     // Get or create Stripe customer
     const stripe = getStripe();
     let customerId = orgData.stripeCustomerId;
@@ -97,6 +101,8 @@ export async function POST(request: NextRequest) {
       metadata: { orgId, plan, interval },
       subscription_data: {
         metadata: { orgId, plan, interval },
+        // 30-day free trial for first-time subscribers only
+        ...(trialDays ? { trial_period_days: trialDays } : {}),
       },
     });
 

@@ -104,6 +104,15 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
   const currentInterval = (org?.billingInterval as BillingInterval | null) || null;
   const limits = PLAN_LIMITS[currentPlan];
 
+  // --- Trial helpers ---
+  const trialEndsAt = org?.trialEndsAt ? new Date(org.trialEndsAt) : null;
+  const now = new Date();
+  const isOnTrial = !!(trialEndsAt && trialEndsAt > now && currentPlan !== "free");
+  const trialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+  const trialUrgent = trialDaysLeft <= 7; // turn banner red in the last week
+
   // Handle billing redirect status
   useEffect(() => {
     if (billingStatus === "success") {
@@ -245,6 +254,62 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
         </p>
       </div>
 
+      {/* ── Trial banner ── */}
+      {isOnTrial && (
+        <div style={{
+          borderRadius: 14,
+          padding: "16px 20px",
+          marginBottom: 24,
+          background: trialUrgent ? "#fff5f5" : "#fffbeb",
+          border: `1.5px solid ${trialUrgent ? "#fca5a5" : "#fcd34d"}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}>
+          <span style={{ fontSize: 26, flexShrink: 0 }}>{trialUrgent ? "⚠️" : "🎉"}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontSize: 14, fontWeight: 700,
+              color: trialUrgent ? "#b91c1c" : "#92400e",
+              marginBottom: 4,
+            }}>
+              {trialDaysLeft === 0
+                ? "Your free trial ends today"
+                : trialDaysLeft === 1
+                ? "Your free trial ends tomorrow"
+                : `Your free trial ends in ${trialDaysLeft} days`}
+            </div>
+            <div style={{ fontSize: 13, color: trialUrgent ? "#dc2626" : "#a16207", lineHeight: 1.5 }}>
+              {trialUrgent
+                ? "Add a payment method now to keep your plan active. If you don't, your account will automatically downgrade to Free on "
+                : "You have full access until "}
+              <strong>{trialEndsAt?.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>
+              {trialUrgent ? "." : ". Add a payment method any time before then — you won't be charged until the trial ends."}
+            </div>
+          </div>
+          <button
+            onClick={handleManageBilling}
+            disabled={loading === "portal"}
+            style={{
+              padding: "9px 18px",
+              border: "none",
+              borderRadius: 9,
+              background: trialUrgent ? "#dc2626" : "#d97706",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: loading === "portal" ? "wait" : "pointer",
+              whiteSpace: "nowrap" as const,
+              fontFamily: fontStack,
+              opacity: loading === "portal" ? 0.7 : 1,
+              flexShrink: 0,
+            }}
+          >
+            {loading === "portal" ? "Opening..." : "Add Payment Method"}
+          </button>
+        </div>
+      )}
+
       {/* Current plan badge */}
       <div
         style={{
@@ -272,11 +337,19 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
                 fontWeight: 700,
                 padding: "3px 10px",
                 borderRadius: 100,
-                background: currentPlan === "free" ? theme.paperWarm : currentPlan === "community" ? "#dbeafe" : "#ede9fe",
-                color: currentPlan === "free" ? theme.muted : currentPlan === "community" ? "#1d4ed8" : "#7c3aed",
+                background: currentPlan === "free"
+                  ? theme.paperWarm
+                  : isOnTrial
+                  ? "#fffbeb"
+                  : currentPlan === "community" ? "#dbeafe" : "#ede9fe",
+                color: currentPlan === "free"
+                  ? theme.muted
+                  : isOnTrial
+                  ? "#92400e"
+                  : currentPlan === "community" ? "#1d4ed8" : "#7c3aed",
               }}
             >
-              {currentPlan === "free" ? "Free tier" : "Active"}
+              {currentPlan === "free" ? "Free tier" : isOnTrial ? `Free Trial — ${trialDaysLeft}d left` : "Active"}
             </span>
           </div>
         </div>
@@ -579,7 +652,11 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
                     transition: "opacity 0.2s",
                   }}
                 >
-                  {isLoading ? "Redirecting..." : `Upgrade to ${card.name}`}
+                  {isLoading
+                    ? "Redirecting..."
+                    : !org?.trialEndsAt && !org?.stripeSubscriptionId
+                    ? `Start Free Trial — ${card.name}`
+                    : `Upgrade to ${card.name}`}
                 </button>
               )}
             </div>

@@ -80,6 +80,7 @@ export interface Organization {
   billingInterval: "month" | "year" | null; // null for free plan
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  trialEndsAt: string | null; // ISO date — set when trial starts, cleared when paid or expired
   ownerId: string; // Firebase Auth UID of creator
   submissionCount: number; // current month submissions
   submissionResetDate: string; // ISO date of next reset

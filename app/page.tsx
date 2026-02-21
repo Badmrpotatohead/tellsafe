@@ -164,7 +164,7 @@ export default function LandingPage() {
             <a href="/auth/signup" className="cta-btn" style={{
               fontSize: 14, fontWeight: 700, color: "#fff", background: "#2d6a6a",
               padding: "9px 22px", borderRadius: 8,
-            }}>Get Started Free</a>
+            }}>Try Free for 1 Month</a>
           </div>
           <button
             className="landing-hamburger"
@@ -190,7 +190,7 @@ export default function LandingPage() {
             padding: "14px 40px", borderRadius: 12,
             fontWeight: 700, fontSize: 16,
           }}
-        >Get Started Free</a>
+        >Try Free for 1 Month</a>
       </div>
 
       {/* ====== DARK HERO ====== */}
@@ -254,7 +254,7 @@ export default function LandingPage() {
               display: "inline-block", padding: "16px 44px",
               background: "#2d6a6a", color: "#fff", borderRadius: 12,
               fontSize: 16, fontWeight: 700,
-            }}>Get Started Free →</a>
+            }}>Try Free for 1 Month →</a>
           </div>
         </div>
       </section>
@@ -551,7 +551,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 980, margin: "0 auto", padding: "0 28px" }}>
           <div style={{ textAlign: "center", marginBottom: 40 }}>
             <h2 className="landing-section-h2" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12 }}>Simple, honest pricing</h2>
-            <p style={{ fontSize: 17, color: "#8a8578" }}>Start free. Upgrade when your community grows.</p>
+            <p style={{ fontSize: 17, color: "#8a8578" }}>First month free on any paid plan — no credit card required.</p>
           </div>
 
           {/* Billing interval toggle — pill buttons */}
@@ -631,13 +631,13 @@ export default function LandingPage() {
                 name: "Community", monthlyPrice: "$4.99", annualPrice: "$3.99", annualTotal: "$47.88/yr",
                 period: "/month", desc: "Active communities", color: "#2d6a6a",
                 features: ["1 organization", "3 admins", "Unlimited submissions", "Anonymous relay messaging", "Custom branding & colors", "In-app replies & categories"],
-                cta: "Start Free Trial", popular: true,
+                cta: "Start 1-Month Free Trial", popular: true,
               },
               {
                 name: "Pro", monthlyPrice: "$9.99", annualPrice: "$7.99", annualTotal: "$95.88/yr",
                 period: "/month", desc: "Multi-community leaders", color: "#c05d3b",
                 features: ["Up to 3 organizations", "5 admins per org", "Everything in Community", "AI sentiment analysis", "Surveys & response templates", "CSV export & analytics", "Multi-language forms", "Public updates board", "Slack/Discord integration"],
-                cta: "Start Free Trial", popular: false,
+                cta: "Start 1-Month Free Trial", popular: false,
               },
             ].map((plan) => {
               const displayPrice = pricingInterval === "year" ? plan.annualPrice : plan.monthlyPrice;
@@ -669,10 +669,16 @@ export default function LandingPage() {
                     )}
                   </div>
                   {pricingInterval === "year" && plan.annualTotal && (
-                    <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 8 }}>
                       billed annually ({plan.annualTotal})
                     </div>
                   )}
+                  {plan.period !== "forever" && (
+                    <div style={{ fontSize: 12, color: "#2d6a6a", fontWeight: 600, marginBottom: 20 }}>
+                      🎁 1 month free — no credit card required
+                    </div>
+                  )}
+                  {plan.period === "forever" && <div style={{ marginBottom: 20 }} />}
                   <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "flex", flexDirection: "column", gap: 8 }}>
                     {plan.features.map((f) => (
                       <li key={f} style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
@@ -711,13 +717,13 @@ export default function LandingPage() {
             Your community deserves<br />to be heard
           </h2>
           <p style={{ fontSize: 16, lineHeight: 1.7, color: "#8a8578", marginBottom: 32 }}>
-            Create your free feedback form in under 2 minutes. No credit card, no coding, no friction.
+            Create your feedback form in under 2 minutes. Your first month is completely free — no credit card required. Downgrade anytime.
           </p>
           <a href="/auth/signup" className="cta-btn" style={{
             display: "inline-block", padding: "18px 44px",
             background: "#2d6a6a", color: "#fff", borderRadius: 14,
             fontSize: 17, fontWeight: 700,
-          }}>Create Your Free Form →</a>
+          }}>Start Your Free Month →</a>
         </div>
       </section>
 

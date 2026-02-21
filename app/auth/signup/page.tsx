@@ -308,10 +308,10 @@ export default function SignupPage() {
               border: "1.5px solid rgba(26,26,46,0.06)",
             }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", margin: "0 0 6px" }}>
-                🏢 Want to add another organization?
+                🎁 Want more? First month free.
               </p>
               <p style={{ fontSize: 13, color: "#8a8578", margin: "0 0 12px", lineHeight: 1.5 }}>
-                If you manage multiple communities, the <strong>Pro plan</strong> lets you run up to 3 organizations from one account. You can add more anytime from the{" "}
+                If you manage multiple communities, the <strong>Pro plan</strong> lets you run up to 3 organizations from one account — and your <strong>first month is free, no credit card needed</strong>. You can upgrade or add more anytime from the{" "}
                 <strong style={{ color: "#2d6a6a" }}>dropdown in the top-left of your dashboard</strong>.
               </p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
@@ -344,7 +344,7 @@ export default function SignupPage() {
                     background: "transparent",
                   }}
                 >
-                  View Pro Plans
+                  Try Free for 1 Month →
                 </a>
               </div>
             </div>

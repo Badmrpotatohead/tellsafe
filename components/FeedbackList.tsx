@@ -25,7 +25,8 @@ interface Props {
 export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFilter, showArchived, viewFilter }: Props) {
   const { theme } = useBrand();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
-  const [filter, setFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
   // Multi-select state
@@ -34,11 +35,13 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
 
-  // Clear selection on view change
+  // Clear selection and filters on view change
   useEffect(() => {
     setSelected(new Set());
     setLastClickedId(null);
     setConfirmDelete(false);
+    setTypeFilter("all");
+    setStatusFilter("all");
   }, [viewFilter, categoryFilter]);
 
   useEffect(() => {
@@ -67,10 +70,12 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
 
     if (categoryFilter && !f.categories.includes(categoryFilter)) return false;
 
-    // Local filter buttons (within the view)
-    if (filter === "needs_reply" && f.status !== "needs_reply" && f.status !== "new") return false;
-    if (filter === "urgent" && f.sentimentLabel !== "urgent") return false;
-    if (filter !== "all" && filter !== "needs_reply" && filter !== "urgent" && f.type !== filter) return false;
+    // Type filter (identified / anonymous / relay)
+    if (typeFilter !== "all" && f.type !== typeFilter) return false;
+
+    // Status filter (needs_reply / urgent) — independent of type filter
+    if (statusFilter === "needs_reply" && f.status !== "needs_reply" && f.status !== "new") return false;
+    if (statusFilter === "urgent" && f.sentimentLabel !== "urgent") return false;
 
     if (search) {
       const q = search.toLowerCase();
@@ -200,11 +205,14 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
     );
   };
 
-  const filters = [
+  const typeFilters = [
     { id: "all", label: "All" },
     { id: "identified", label: "👋 Identified" },
     { id: "anonymous", label: "👤 Anon" },
     { id: "relay", label: "🔀 Relay" },
+  ];
+
+  const statusFilters = [
     { id: "needs_reply", label: "⚡ Needs Reply" },
     { id: "urgent", label: "🚨 Urgent" },
   ];
@@ -246,21 +254,47 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
             background: "#fff", outline: "none", fontFamily: fontStack,
           }}
         />
-        {filters.map((f) => (
+
+        {/* Type filters: All / Identified / Anon / Relay */}
+        {typeFilters.map((f) => (
           <button
             key={f.id}
-            onClick={() => setFilter(f.id)}
+            onClick={() => setTypeFilter(f.id)}
             style={{
               padding: "7px 12px", borderRadius: 100, fontSize: 11, fontWeight: 600,
-              border: `1.5px solid ${filter === f.id ? theme.ink : theme.divider}`,
-              background: filter === f.id ? theme.ink : "#fff",
-              color: filter === f.id ? "#f8f6f1" : theme.ink,
+              border: `1.5px solid ${typeFilter === f.id ? theme.ink : theme.divider}`,
+              background: typeFilter === f.id ? theme.ink : "#fff",
+              color: typeFilter === f.id ? "#f8f6f1" : theme.ink,
               cursor: "pointer", outline: "none", fontFamily: fontStack,
             }}
           >
             {f.label}
           </button>
         ))}
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 20, background: theme.divider, margin: "0 2px", flexShrink: 0 }} />
+
+        {/* Status filters: Needs Reply / Urgent — independently toggleable */}
+        {statusFilters.map((f) => {
+          const isActive = statusFilter === f.id;
+          const isUrgent = f.id === "urgent";
+          return (
+            <button
+              key={f.id}
+              onClick={() => setStatusFilter(isActive ? "all" : f.id)}
+              style={{
+                padding: "7px 12px", borderRadius: 100, fontSize: 11, fontWeight: 600,
+                border: `1.5px solid ${isActive ? (isUrgent ? "#dc2626" : theme.accent) : theme.divider}`,
+                background: isActive ? (isUrgent ? "#fee2e2" : theme.accentGlow) : "#fff",
+                color: isActive ? (isUrgent ? "#dc2626" : theme.accent) : theme.ink,
+                cursor: "pointer", outline: "none", fontFamily: fontStack,
+              }}
+            >
+              {f.label}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: selected.size > 0 ? 80 : 0 }}>
