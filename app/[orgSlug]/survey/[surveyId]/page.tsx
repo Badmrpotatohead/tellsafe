@@ -6,7 +6,7 @@
 
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect } from "react";
 import type { Survey, SurveyQuestion, SurveyResponseAnswer } from "../../../../types/survey";
 import type { Organization } from "../../../../types";
 
@@ -14,11 +14,11 @@ const fontStack = "'Outfit', 'DM Sans', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
 
 interface PageProps {
-  params: Promise<{ orgSlug: string; surveyId: string }>;
+  params: { orgSlug: string; surveyId: string };
 }
 
 export default function SurveyPage({ params }: PageProps) {
-  const { orgSlug, surveyId } = use(params);
+  const { orgSlug, surveyId } = params;
 
   const [survey, setSurvey] = useState<any>(null);
   const [org, setOrg] = useState<any>(null);
