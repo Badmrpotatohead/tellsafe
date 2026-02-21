@@ -21,10 +21,14 @@ interface Props {
   billingStatus?: "success" | "cancel" | null;
 }
 
+type BillingInterval = "month" | "year";
+
 interface PlanCard {
   plan: Plan;
   name: string;
-  price: string;
+  monthlyPrice: string;   // displayed when toggle = monthly
+  annualPrice: string;    // per-month figure when toggle = annual
+  annualTotal: string;    // e.g. "$47.88/yr" — shown as sub-note
   period: string;
   description: string;
   features: string[];
@@ -35,7 +39,9 @@ const PLAN_CARDS: PlanCard[] = [
   {
     plan: "free",
     name: "Free",
-    price: "$0",
+    monthlyPrice: "$0",
+    annualPrice: "$0",
+    annualTotal: "",
     period: "",
     description: "Get started with anonymous feedback",
     features: [
@@ -49,7 +55,9 @@ const PLAN_CARDS: PlanCard[] = [
   {
     plan: "community",
     name: "Community",
-    price: "$4.99",
+    monthlyPrice: "$4.99",
+    annualPrice: "$3.99",
+    annualTotal: "$47.88/yr",
     period: "/month",
     description: "For growing organizations",
     highlighted: true,
@@ -65,7 +73,9 @@ const PLAN_CARDS: PlanCard[] = [
   {
     plan: "pro",
     name: "Pro",
-    price: "$9.99",
+    monthlyPrice: "$9.99",
+    annualPrice: "$7.99",
+    annualTotal: "$95.88/yr",
     period: "/month",
     description: "Full suite for serious orgs",
     features: [
@@ -88,8 +98,10 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState<string | null>(null);
+  const [interval, setInterval] = useState<BillingInterval>("year");
 
   const currentPlan = org?.plan || "free";
+  const currentInterval = (org?.billingInterval as BillingInterval | null) || null;
   const limits = PLAN_LIMITS[currentPlan];
 
   // Handle billing redirect status
@@ -129,7 +141,7 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ orgId, plan }),
+        body: JSON.stringify({ orgId, plan, interval }),
       });
 
       const data = await res.json();
@@ -190,6 +202,14 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
 
   const planIndex = (p: Plan) => (p === "free" ? 0 : p === "community" ? 1 : 2);
 
+  // Human-readable current plan label including interval
+  const currentPlanLabel =
+    currentPlan === "free"
+      ? "Free"
+      : currentPlan === "community"
+      ? currentInterval === "year" ? "Community (Annual)" : "Community (Monthly)"
+      : currentInterval === "year" ? "Pro (Annual)" : "Pro (Monthly)";
+
   return (
     <div style={{ padding: 36, fontFamily: fontStack, maxWidth: 900 }}>
       {/* Toast */}
@@ -221,7 +241,7 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
           Billing & Plan
         </h1>
         <p style={{ color: theme.muted, fontSize: 14, marginTop: 6 }}>
-          Manage your subscription and see what's included in each plan.
+          Manage your subscription and see what&apos;s included in each plan.
         </p>
       </div>
 
@@ -244,7 +264,7 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 20, fontWeight: 700, color: theme.ink }}>
-              {currentPlan === "free" ? "Free" : currentPlan === "community" ? "Community" : "Pro"}
+              {currentPlanLabel}
             </span>
             <span
               style={{
@@ -338,13 +358,73 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
         </div>
       )}
 
+      {/* ── Billing interval toggle — pill buttons ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <div style={{
+          display: "inline-flex",
+          background: theme.divider,
+          borderRadius: 100,
+          padding: 3,
+          gap: 2,
+        }}>
+          <button
+            onClick={() => setInterval("month")}
+            style={{
+              padding: "7px 20px",
+              borderRadius: 100,
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: fontStack,
+              transition: "all 0.2s",
+              background: interval === "month" ? "#fff" : "transparent",
+              color: interval === "month" ? theme.ink : theme.muted,
+              boxShadow: interval === "month" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            }}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setInterval("year")}
+            style={{
+              padding: "7px 20px",
+              borderRadius: 100,
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: fontStack,
+              transition: "all 0.2s",
+              background: interval === "year" ? theme.primary : "transparent",
+              color: interval === "year" ? "#fff" : theme.muted,
+              boxShadow: interval === "year" ? "0 1px 3px rgba(45,106,106,0.3)" : "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+            }}
+          >
+            Annual
+            <span style={{
+              fontSize: 10,
+              fontWeight: 800,
+              padding: "2px 7px",
+              borderRadius: 100,
+              background: interval === "year" ? "rgba(255,255,255,0.25)" : theme.primary,
+              color: "#fff",
+              letterSpacing: "0.02em",
+            }}>SAVE 20%</span>
+          </button>
+        </div>
+      </div>
+
       {/* Plan cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
         {PLAN_CARDS.map((card) => {
           const isCurrent = card.plan === currentPlan;
           const isDowngrade = planIndex(card.plan) < planIndex(currentPlan);
-          const isUpgrade = planIndex(card.plan) > planIndex(currentPlan);
           const isLoading = loading === card.plan;
+          const displayPrice = interval === "year" ? card.annualPrice : card.monthlyPrice;
 
           return (
             <div
@@ -405,12 +485,18 @@ export default function BillingSettings({ orgId, billingStatus }: Props) {
               )}
 
               <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>{card.name}</h3>
-              <div style={{ marginBottom: 8 }}>
-                <span style={{ fontSize: 32, fontWeight: 700, color: theme.ink }}>{card.price}</span>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ fontSize: 32, fontWeight: 700, color: theme.ink }}>{displayPrice}</span>
                 {card.period && (
                   <span style={{ fontSize: 14, color: theme.muted }}>{card.period}</span>
                 )}
               </div>
+              {/* Annual sub-note */}
+              {interval === "year" && card.annualTotal && (
+                <div style={{ fontSize: 12, color: theme.muted, marginBottom: 8 }}>
+                  billed annually ({card.annualTotal})
+                </div>
+              )}
               <p style={{ fontSize: 13, color: theme.muted, margin: "0 0 16px", lineHeight: 1.4 }}>
                 {card.description}
               </p>

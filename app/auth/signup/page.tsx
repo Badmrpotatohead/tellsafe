@@ -16,7 +16,7 @@ const monoFont = "'JetBrains Mono', monospace";
 export default function SignupPage() {
   const router = useRouter();
   const { signup, error: authError } = useAuth();
-  const [step, setStep] = useState<"account" | "org">("account");
+  const [step, setStep] = useState<"account" | "org" | "done">("account");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,7 +54,7 @@ export default function SignupPage() {
     setError(null);
     try {
       await createOrganization(orgName, slug);
-      router.push("/admin");
+      setStep("done");
     } catch (err: any) {
       setError(err.message || "Failed to create organization.");
     } finally {
@@ -100,32 +100,34 @@ export default function SignupPage() {
           boxShadow: "0 8px 32px rgba(26,26,46,0.10)",
         }}
       >
-        {/* Step indicator */}
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 28 }}>
-          {["Account", "Organization"].map((label, i) => {
-            const active = (i === 0 && step === "account") || (i === 1 && step === "org");
-            const completed = i === 0 && step === "org";
-            return (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div
-                  style={{
-                    width: 24, height: 24, borderRadius: "50%",
-                    background: completed ? "#059669" : active ? "#2d6a6a" : "rgba(26,26,46,0.08)",
-                    color: completed || active ? "#fff" : "#8a8578",
-                    fontSize: 12, fontWeight: 700,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  {completed ? "✓" : i + 1}
+        {/* Step indicator — hidden on done step */}
+        {step !== "done" && (
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 28 }}>
+            {["Account", "Organization"].map((label, i) => {
+              const active = (i === 0 && step === "account") || (i === 1 && step === "org");
+              const completed = i === 0 && step === "org";
+              return (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div
+                    style={{
+                      width: 24, height: 24, borderRadius: "50%",
+                      background: completed ? "#059669" : active ? "#2d6a6a" : "rgba(26,26,46,0.08)",
+                      color: completed || active ? "#fff" : "#8a8578",
+                      fontSize: 12, fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {completed ? "✓" : i + 1}
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: active ? "#1a1a2e" : "#8a8578" }}>
+                    {label}
+                  </span>
+                  {i === 0 && <span style={{ color: "#e8e5de", margin: "0 4px" }}>—</span>}
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: active ? "#1a1a2e" : "#8a8578" }}>
-                  {label}
-                </span>
-                {i === 0 && <span style={{ color: "#e8e5de", margin: "0 4px" }}>—</span>}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {step === "account" ? (
           <>
@@ -277,6 +279,76 @@ export default function SignupPage() {
               Sign in →
             </a>
           </p>
+        )}
+
+        {step === "done" && (
+          <div style={{ textAlign: "center" }}>
+            {/* Success icon */}
+            <div style={{
+              width: 64, height: 64, borderRadius: "50%",
+              background: "linear-gradient(135deg, #2d6a6a, #a3c9c9)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 28, margin: "0 auto 20px",
+            }}>🚀</div>
+
+            <h1 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8, color: "#1a1a2e" }}>
+              You&apos;re all set!
+            </h1>
+            <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6, marginBottom: 28 }}>
+              <strong style={{ color: "#1a1a2e" }}>{orgName}</strong> is ready. Your community can start sharing feedback right now.
+            </p>
+
+            {/* "Add another org?" prompt */}
+            <div style={{
+              background: "#f8f6f1",
+              borderRadius: 14,
+              padding: "18px 20px",
+              marginBottom: 24,
+              textAlign: "left",
+              border: "1.5px solid rgba(26,26,46,0.06)",
+            }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", margin: "0 0 6px" }}>
+                🏢 Want to add another organization?
+              </p>
+              <p style={{ fontSize: 13, color: "#8a8578", margin: "0 0 12px", lineHeight: 1.5 }}>
+                If you manage multiple communities, the <strong>Pro plan</strong> lets you run up to 3 organizations from one account. You can add more anytime from the{" "}
+                <strong style={{ color: "#2d6a6a" }}>dropdown in the top-left of your dashboard</strong>.
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                <a
+                  href="/admin"
+                  style={{
+                    display: "inline-block",
+                    padding: "9px 20px",
+                    background: "#2d6a6a",
+                    color: "#fff",
+                    borderRadius: 9,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  Go to Dashboard →
+                </a>
+                <a
+                  href="/admin?billing=upgrade"
+                  style={{
+                    display: "inline-block",
+                    padding: "9px 20px",
+                    border: "1.5px solid #2d6a6a",
+                    color: "#2d6a6a",
+                    borderRadius: 9,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    background: "transparent",
+                  }}
+                >
+                  View Pro Plans
+                </a>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

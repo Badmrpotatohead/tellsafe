@@ -2,6 +2,13 @@
 // TellSafe — Stripe Webhook Handler
 // ============================================================
 // POST: Receives Stripe webhook events to sync subscription state
+//
+// Proration note: we do NOT pass proration_behavior anywhere here
+// because this handler only reads events — it never calls
+// stripe.subscriptions.update(). Proration on plan changes is
+// handled by Stripe Checkout (default: create_prorations) and
+// the Customer Portal (configured in your Stripe dashboard).
+// Both default to create_prorations, so no extra code is needed.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +52,8 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const orgId = session.metadata?.orgId;
         const plan = session.metadata?.plan;
+        // interval is stored in metadata by the checkout route
+        const interval = (session.metadata?.interval as "month" | "year") || "month";
 
         if (!orgId || !plan) {
           console.error("[stripe/webhook] checkout.session.completed missing metadata");
@@ -55,10 +64,11 @@ export async function POST(request: NextRequest) {
           stripeCustomerId: session.customer as string,
           stripeSubscriptionId: session.subscription as string,
           plan,
+          billingInterval: interval,
           updatedAt: new Date().toISOString(),
         });
 
-        console.log(`[stripe/webhook] Org ${orgId} upgraded to ${plan}`);
+        console.log(`[stripe/webhook] Org ${orgId} upgraded to ${plan} (${interval})`);
         break;
       }
 
@@ -72,15 +82,20 @@ export async function POST(request: NextRequest) {
         }
 
         // Determine plan from the price ID
-        const priceId = subscription.items.data[0]?.price?.id;
+        const priceItem = subscription.items.data[0];
+        const priceId = priceItem?.price?.id;
         const plan = priceId ? getPriceToPlan()[priceId] : null;
+
+        // Derive interval from Stripe directly — covers portal-driven switches too
+        const interval = (priceItem?.price?.recurring?.interval as "month" | "year") || "month";
 
         if (plan) {
           await adminDb.collection("organizations").doc(orgId).update({
             plan,
+            billingInterval: interval,
             updatedAt: new Date().toISOString(),
           });
-          console.log(`[stripe/webhook] Org ${orgId} subscription updated to ${plan}`);
+          console.log(`[stripe/webhook] Org ${orgId} subscription updated to ${plan} (${interval})`);
         }
 
         // Handle cancellation scheduled
@@ -101,6 +116,7 @@ export async function POST(request: NextRequest) {
 
         await adminDb.collection("organizations").doc(orgId).update({
           plan: "free",
+          billingInterval: null,
           stripeSubscriptionId: null,
           updatedAt: new Date().toISOString(),
         });

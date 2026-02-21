@@ -27,6 +27,7 @@ import UpdatesManager from "../../components/UpdatesManager";
 import IntegrationsSettings from "../../components/IntegrationsSettings";
 import type { AdminView } from "../../components/AdminSidebar";
 import { PLAN_LIMITS } from "../../types";
+import { createOrganization } from "../../lib/data";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -114,7 +115,7 @@ export default function AdminPage() {
 }
 
 function AdminPageInner() {
-  const { user, org, loading } = useAuth();
+  const { user, org, allOrgs, loading, setOrg, refreshOrg } = useAuth();
   const [view, setView] = useState<AdminView>("inbox");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadFeedbackId, setThreadFeedbackId] = useState<string | null>(null);
@@ -125,6 +126,39 @@ function AdminPageInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchParams = useSearchParams();
   const billingParam = searchParams.get("billing") as "success" | "cancel" | null;
+
+  // --- New Org Modal ---
+  const [newOrgOpen, setNewOrgOpen] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [newOrgSlug, setNewOrgSlug] = useState("");
+  const [newOrgLoading, setNewOrgLoading] = useState(false);
+  const [newOrgError, setNewOrgError] = useState<string | null>(null);
+
+  const generateSlug = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").slice(0, 50);
+
+  const handleCreateOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewOrgLoading(true);
+    setNewOrgError(null);
+    try {
+      const { getMyOrganizations } = await import("../../lib/data");
+      await createOrganization(newOrgName, newOrgSlug);
+      // Reload all orgs and switch to the newly created one (last in list)
+      const updatedOrgs = await getMyOrganizations();
+      const newOrg = updatedOrgs.find((o) => o.slug === newOrgSlug) || updatedOrgs[updatedOrgs.length - 1];
+      setOrg(newOrg);
+      await refreshOrg();
+      setNewOrgOpen(false);
+      setNewOrgName("");
+      setNewOrgSlug("");
+      setView("inbox");
+    } catch (err: any) {
+      setNewOrgError(err.message || "Failed to create organization.");
+    } finally {
+      setNewOrgLoading(false);
+    }
+  };
 
   // Auto-navigate to billing tab after Stripe redirect
   useEffect(() => {
@@ -260,6 +294,9 @@ function AdminPageInner() {
 
   const orgId = org.id;
 
+  // Pro plan allows up to 3 orgs; show "+ Add Org" only when under the limit
+  const canAddOrg = org.plan === "pro" && allOrgs.length < 3;
+
   const viewLabel = categoryFilter
     ? categoryFilter
     : view === "inbox" ? "Inbox"
@@ -364,6 +401,9 @@ function AdminPageInner() {
             mobileOpen={sidebarOpen}
             onMobileClose={() => setSidebarOpen(false)}
             plan={org.plan}
+            allOrgs={allOrgs}
+            onOrgSwitch={(newOrg) => { setOrg(newOrg); setView("inbox"); }}
+            onAddOrg={canAddOrg ? () => setNewOrgOpen(true) : undefined}
           />
           <main className="admin-main" style={{ marginLeft: 240, flex: 1 }}>
             {mobileTopBar}
@@ -687,6 +727,9 @@ function AdminPageInner() {
           mobileOpen={sidebarOpen}
           onMobileClose={() => setSidebarOpen(false)}
           plan={org.plan}
+          allOrgs={allOrgs}
+          onOrgSwitch={(newOrg) => { setOrg(newOrg); setCategoryFilter(null); setView("inbox"); }}
+          onAddOrg={canAddOrg ? () => setNewOrgOpen(true) : undefined}
         />
         <main className="admin-main" style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
           {mobileTopBar}
@@ -700,6 +743,134 @@ function AdminPageInner() {
           )}
         </main>
       </div>
+
+      {/* ── New Organization Modal ── */}
+      {newOrgOpen && (
+        <div
+          onClick={() => { setNewOrgOpen(false); setNewOrgError(null); }}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: 20, padding: "40px 36px",
+              maxWidth: 440, width: "100%",
+              boxShadow: "0 16px 64px rgba(0,0,0,0.2)",
+              fontFamily: fontStack,
+              animation: "scaleIn 0.2s ease",
+            }}
+          >
+            <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 6, color: "#1a1a2e" }}>
+              Add Organization
+            </h2>
+            <p style={{ fontSize: 13, color: "#8a8578", marginBottom: 24 }}>
+              Pro plan allows up to 3 organizations. You have {allOrgs.length} of 3.
+            </p>
+
+            <form onSubmit={handleCreateOrg}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 5, color: "#1a1a2e" }}>
+                  Organization Name
+                </label>
+                <input
+                  value={newOrgName}
+                  onChange={(e) => {
+                    setNewOrgName(e.target.value);
+                    setNewOrgSlug(generateSlug(e.target.value));
+                  }}
+                  placeholder="West Orlando Westies"
+                  required
+                  style={{
+                    width: "100%", padding: "11px 14px",
+                    border: "1.5px solid rgba(26,26,46,0.12)", borderRadius: 10,
+                    fontSize: 14, color: "#1a1a2e", background: "#f8f6f1",
+                    outline: "none", fontFamily: fontStack, boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 5, color: "#1a1a2e" }}>
+                  Your URL
+                </label>
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <span style={{
+                    padding: "11px 12px 11px 14px",
+                    background: "#eeebe4",
+                    border: "1.5px solid rgba(26,26,46,0.12)",
+                    borderRight: "none",
+                    borderRadius: "10px 0 0 10px",
+                    fontSize: 12, color: "#8a8578",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    whiteSpace: "nowrap",
+                  }}>
+                    tellsafe.app/
+                  </span>
+                  <input
+                    value={newOrgSlug}
+                    onChange={(e) => setNewOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                    placeholder="your-org"
+                    required
+                    style={{
+                      flex: 1, padding: "11px 14px",
+                      border: "1.5px solid rgba(26,26,46,0.12)",
+                      borderRadius: "0 10px 10px 0",
+                      fontSize: 12, color: "#1a1a2e", background: "#f8f6f1",
+                      outline: "none",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: 11, color: "#8a8578", marginTop: 5 }}>
+                  This is where your feedback form lives. Lowercase letters, numbers, and hyphens only.
+                </div>
+              </div>
+
+              {newOrgError && (
+                <div style={{
+                  padding: "10px 14px", borderRadius: 10, marginBottom: 16, fontSize: 13,
+                  background: "rgba(192,93,59,0.08)", color: "#c05d3b",
+                }}>
+                  {newOrgError}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => { setNewOrgOpen(false); setNewOrgError(null); }}
+                  style={{
+                    flex: 1, padding: "12px 0", border: "1.5px solid rgba(26,26,46,0.12)",
+                    borderRadius: 10, background: "transparent", color: "#8a8578",
+                    fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: fontStack,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={newOrgLoading}
+                  style={{
+                    flex: 2, padding: "12px 0", border: "none",
+                    borderRadius: 10, background: "#2d6a6a", color: "#fff",
+                    fontSize: 14, fontWeight: 700,
+                    cursor: newOrgLoading ? "not-allowed" : "pointer",
+                    opacity: newOrgLoading ? 0.7 : 1,
+                    fontFamily: fontStack,
+                  }}
+                >
+                  {newOrgLoading ? "Creating..." : "Create Organization →"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </BrandProvider>
   );
 }

@@ -10,6 +10,7 @@ export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [activeDemo, setActiveDemo] = useState<"submit" | "admin" | "relay">("submit");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pricingInterval, setPricingInterval] = useState<"month" | "year">("year");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -548,59 +549,147 @@ export default function LandingPage() {
       {/* ====== PRICING ====== */}
       <section id="pricing" className="landing-section" style={{ padding: "100px 0", background: "#ede9e0", color: "#1a1a2e" }}>
         <div style={{ maxWidth: 980, margin: "0 auto", padding: "0 28px" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
             <h2 className="landing-section-h2" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 38, fontWeight: 400, marginBottom: 12 }}>Simple, honest pricing</h2>
             <p style={{ fontSize: 17, color: "#8a8578" }}>Start free. Upgrade when your community grows.</p>
           </div>
+
+          {/* Billing interval toggle — pill buttons */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 48 }}>
+            <div style={{
+              display: "inline-flex",
+              background: "rgba(26,26,46,0.08)",
+              borderRadius: 100,
+              padding: 4,
+              gap: 2,
+            }}>
+              <button
+                onClick={() => setPricingInterval("month")}
+                style={{
+                  padding: "9px 28px",
+                  borderRadius: 100,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: "all 0.2s",
+                  background: pricingInterval === "month" ? "#fff" : "transparent",
+                  color: pricingInterval === "month" ? "#1a1a2e" : "#8a8578",
+                  boxShadow: pricingInterval === "month" ? "0 1px 4px rgba(0,0,0,0.12)" : "none",
+                }}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setPricingInterval("year")}
+                style={{
+                  padding: "9px 28px",
+                  borderRadius: 100,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: "all 0.2s",
+                  background: pricingInterval === "year" ? "#2d6a6a" : "transparent",
+                  color: pricingInterval === "year" ? "#fff" : "#8a8578",
+                  boxShadow: pricingInterval === "year" ? "0 1px 4px rgba(45,106,106,0.3)" : "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                Annual
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: "2px 8px",
+                  borderRadius: 100,
+                  background: pricingInterval === "year" ? "rgba(255,255,255,0.25)" : "#2d6a6a",
+                  color: "#fff",
+                  letterSpacing: "0.02em",
+                }}>SAVE 20%</span>
+              </button>
+            </div>
+            {pricingInterval === "year" && (
+              <p style={{ fontSize: 13, color: "#2d6a6a", fontWeight: 600, margin: 0 }}>
+                🎉 You&apos;re saving 20% — billed once per year
+              </p>
+            )}
+          </div>
+
           <div className="landing-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
             {[
-              { name: "Free", price: "$0", period: "forever", desc: "Try it out", color: "#8a8578",
+              {
+                name: "Free", monthlyPrice: "$0", annualPrice: "$0", annualTotal: "",
+                period: "forever", desc: "Try it out", color: "#8a8578",
                 features: ["1 organization", "1 admin", "25 submissions/month", "Identified & anonymous", "QR code generator", "Kiosk/tablet mode"],
-                cta: "Get Started", popular: false },
-              { name: "Community", price: "$4.99", period: "/month", desc: "Active communities", color: "#2d6a6a",
+                cta: "Get Started", popular: false,
+              },
+              {
+                name: "Community", monthlyPrice: "$4.99", annualPrice: "$3.99", annualTotal: "$47.88/yr",
+                period: "/month", desc: "Active communities", color: "#2d6a6a",
                 features: ["1 organization", "3 admins", "Unlimited submissions", "Anonymous relay messaging", "Custom branding & colors", "In-app replies & categories"],
-                cta: "Start Free Trial", popular: true },
-              { name: "Pro", price: "$9.99", period: "/month", desc: "Multi-community leaders", color: "#c05d3b",
+                cta: "Start Free Trial", popular: true,
+              },
+              {
+                name: "Pro", monthlyPrice: "$9.99", annualPrice: "$7.99", annualTotal: "$95.88/yr",
+                period: "/month", desc: "Multi-community leaders", color: "#c05d3b",
                 features: ["Up to 3 organizations", "5 admins per org", "Everything in Community", "AI sentiment analysis", "Surveys & response templates", "CSV export & analytics", "Multi-language forms", "Public updates board", "Slack/Discord integration"],
-                cta: "Start Free Trial", popular: false },
-            ].map((plan) => (
-              <div key={plan.name} className="price-card" style={{
-                padding: 32, borderRadius: 20, background: "#fff",
-                border: plan.popular ? `2px solid ${plan.color}` : "1px solid rgba(26,26,46,0.08)",
-                position: "relative", overflow: "hidden",
-              }}>
-                {plan.popular && (
-                  <>
-                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: plan.color }} />
-                    <span style={{
-                      position: "absolute", top: 14, right: 14,
-                      fontSize: 9, fontWeight: 800, letterSpacing: "0.08em",
-                      padding: "4px 10px", borderRadius: 4, background: plan.color, color: "#fff",
-                    }}>POPULAR</span>
-                  </>
-                )}
-                <h3 style={{ fontSize: 17, fontWeight: 700, color: plan.color, marginBottom: 2 }}>{plan.name}</h3>
-                <p style={{ fontSize: 12, color: "#8a8578", marginBottom: 20 }}>{plan.desc}</p>
-                <div style={{ marginBottom: 24 }}>
-                  <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 42 }}>{plan.price}</span>
-                  <span style={{ fontSize: 13, color: "#8a8578", marginLeft: 4 }}>{plan.period}</span>
+                cta: "Start Free Trial", popular: false,
+              },
+            ].map((plan) => {
+              const displayPrice = pricingInterval === "year" ? plan.annualPrice : plan.monthlyPrice;
+              return (
+                <div key={plan.name} className="price-card" style={{
+                  padding: 32, borderRadius: 20, background: "#fff",
+                  border: plan.popular ? `2px solid ${plan.color}` : "1px solid rgba(26,26,46,0.08)",
+                  position: "relative", overflow: "hidden",
+                }}>
+                  {plan.popular && (
+                    <>
+                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: plan.color }} />
+                      <span style={{
+                        position: "absolute", top: 14, right: 14,
+                        fontSize: 9, fontWeight: 800, letterSpacing: "0.08em",
+                        padding: "4px 10px", borderRadius: 4, background: plan.color, color: "#fff",
+                      }}>POPULAR</span>
+                    </>
+                  )}
+                  <h3 style={{ fontSize: 17, fontWeight: 700, color: plan.color, marginBottom: 2 }}>{plan.name}</h3>
+                  <p style={{ fontSize: 12, color: "#8a8578", marginBottom: 16 }}>{plan.desc}</p>
+                  <div style={{ marginBottom: pricingInterval === "year" && plan.annualTotal ? 4 : 24 }}>
+                    <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 42 }}>{displayPrice}</span>
+                    {plan.period !== "forever" && (
+                      <span style={{ fontSize: 13, color: "#8a8578", marginLeft: 4 }}>/month</span>
+                    )}
+                    {plan.period === "forever" && (
+                      <span style={{ fontSize: 13, color: "#8a8578", marginLeft: 4 }}>forever</span>
+                    )}
+                  </div>
+                  {pricingInterval === "year" && plan.annualTotal && (
+                    <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 20 }}>
+                      billed annually ({plan.annualTotal})
+                    </div>
+                  )}
+                  <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "flex", flexDirection: "column", gap: 8 }}>
+                    {plan.features.map((f) => (
+                      <li key={f} style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: plan.color, fontWeight: 700 }}>✓</span> {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <a href="/auth/signup" style={{
+                    display: "block", textAlign: "center", padding: "12px 24px",
+                    borderRadius: 10, fontSize: 14, fontWeight: 700,
+                    background: plan.popular ? plan.color : "transparent",
+                    color: plan.popular ? "#fff" : plan.color,
+                    border: plan.popular ? "none" : `1.5px solid ${plan.color}`,
+                  }}>{plan.cta}</a>
                 </div>
-                <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {plan.features.map((f) => (
-                    <li key={f} style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ color: plan.color, fontWeight: 700 }}>✓</span> {f}
-                    </li>
-                  ))}
-                </ul>
-                <a href="/auth/signup" style={{
-                  display: "block", textAlign: "center", padding: "12px 24px",
-                  borderRadius: 10, fontSize: 14, fontWeight: 700,
-                  background: plan.popular ? plan.color : "transparent",
-                  color: plan.popular ? "#fff" : plan.color,
-                  border: plan.popular ? "none" : `1.5px solid ${plan.color}`,
-                }}>{plan.cta}</a>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

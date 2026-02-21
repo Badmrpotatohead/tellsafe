@@ -28,32 +28,37 @@ export async function sendRelayConfirmation(params: {
   orgName: string;
   threadId: string;
 }) {
-  const { memberEmail, orgName, threadId } = params;
+  const { memberEmail, orgName } = params;
 
   await getResend().emails.send({
     from: FROM_EMAIL,
     to: memberEmail,
-    subject: `Your anonymous feedback was received — ${orgName}`,
+    subject: "Your feedback was received",
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
         <div style="background: #f8f6f1; border-radius: 16px; padding: 32px; border: 1px solid #e8e5de;">
-          <div style="font-size: 14px; color: #6b5b8a; font-weight: 600; margin-bottom: 16px;">
-            🔀 Anonymous Relay — Thread #${threadId}
-          </div>
-          <h2 style="font-size: 22px; margin: 0 0 12px; color: #1a1a2e;">
-            Your feedback was delivered
+          <h2 style="font-size: 22px; margin: 0 0 16px; color: #1a1a2e;">
+            Your message has been securely received.
           </h2>
+          <p style="font-size: 15px; color: #5a5650; line-height: 1.6; margin: 0 0 16px;">
+            An organizer from <strong>${orgName}</strong> will be able to respond through
+            this anonymous channel. You'll receive their reply at this email address —
+            your identity stays private throughout.
+          </p>
           <p style="font-size: 15px; color: #5a5650; line-height: 1.6; margin: 0 0 20px;">
-            The organizers at <strong>${orgName}</strong> have received your anonymous feedback.
-            If they respond, you'll receive their reply at this email address.
+            If your message is urgent or involves safety, please also consider reaching
+            out to local resources directly.
           </p>
           <div style="background: rgba(107, 91, 138, 0.08); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #6b5b8a; line-height: 1.5;">
-            🔒 <strong>Your identity is protected.</strong> The organizers cannot see your
+            🔒 <strong>Your identity is protected.</strong> The organizer cannot see your
             email address. All replies are routed through TellSafe's encrypted relay.
           </div>
         </div>
-        <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: 20px;">
-          Powered by <a href="https://tellsafe.vercel.app" style="color: #2d6a6a;">TellSafe</a> —
+        <p style="font-size: 13px; color: #8a8578; text-align: center; margin-top: 20px;">
+          — TellSafe
+        </p>
+        <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: 4px;">
+          <a href="https://tellsafe.vercel.app" style="color: #2d6a6a;">tellsafe.app</a> —
           Anonymous feedback for communities
         </p>
       </div>

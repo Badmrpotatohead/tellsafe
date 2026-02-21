@@ -4,12 +4,12 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useBrand } from "./BrandProvider";
 import { useAuth } from "./AuthProvider";
 import { subscribeFeedback } from "../lib/data";
 import { PLAN_LIMITS } from "../types";
-import type { Feedback, Plan } from "../types";
+import type { Feedback, Plan, Organization } from "../types";
 
 const displayFont = "'Fraunces', Georgia, serif";
 const monoFont = "'JetBrains Mono', monospace";
@@ -29,11 +29,27 @@ interface Props {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
   plan?: Plan;
+  allOrgs?: Organization[];
+  onOrgSwitch?: (org: Organization) => void;
+  onAddOrg?: () => void;
 }
 
-export default function AdminSidebar({ orgId, activeView, onNavigate, activeCategory, onCategoryFilter, mobileOpen, onMobileClose, plan = "free" }: Props) {
+export default function AdminSidebar({ orgId, activeView, onNavigate, activeCategory, onCategoryFilter, mobileOpen, onMobileClose, plan = "free", allOrgs = [], onOrgSwitch, onAddOrg }: Props) {
   const { theme, orgName, logoUrl } = useBrand();
   const { logout } = useAuth();
+  const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
+  const orgDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close org dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (orgDropdownRef.current && !orgDropdownRef.current.contains(e.target as Node)) {
+        setOrgDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const inboxViews: AdminView[] = ["inbox", "needs_reply", "resolved", "urgent"];
   const [inboxOpen, setInboxOpen] = useState(inboxViews.includes(activeView));
@@ -115,52 +131,185 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
           transition: "transform 0.25s ease",
         }}
       >
-      {/* Org header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "22px 20px 18px",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          color: "#f8f6f1",
-        }}
-      >
-        {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt=""
-            style={{
-              height: 36,
-              width: 36,
-              objectFit: "contain",
-              borderRadius: 8,
+      {/* Org header — clickable dropdown if Pro + multiple orgs */}
+      <div ref={orgDropdownRef} style={{ position: "relative" }}>
+        <div
+          onClick={() => {
+            const canOpen = (allOrgs.length > 1 && onOrgSwitch) || onAddOrg;
+            if (canOpen) setOrgDropdownOpen((o) => !o);
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "22px 20px 18px",
+            borderBottom: orgDropdownOpen ? "none" : "1px solid rgba(255,255,255,0.06)",
+            color: "#f8f6f1",
+            cursor: ((allOrgs.length > 1 && onOrgSwitch) || onAddOrg) ? "pointer" : "default",
+            userSelect: "none",
+            transition: "background 0.15s",
+            ...((allOrgs.length > 1 && onOrgSwitch) || onAddOrg ? { background: orgDropdownOpen ? "rgba(255,255,255,0.04)" : "transparent" } : {}),
+          }}
+        >
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt=""
+              style={{
+                height: 36,
+                width: 36,
+                objectFit: "contain",
+                borderRadius: 8,
+                flexShrink: 0,
+              }}
+            />
+          ) : null}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2
+              style={{
+                fontFamily: displayFont,
+                fontSize: 18,
+                fontWeight: 600,
+                lineHeight: 1.2,
+                margin: 0,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {orgName}
+            </h2>
+            <span
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.55)",
+                fontFamily: monoFont,
+              }}
+            >
+              Admin Console
+            </span>
+          </div>
+          {((allOrgs.length > 1 && onOrgSwitch) || onAddOrg) && (
+            <span style={{
+              fontSize: 10,
+              color: "rgba(255,255,255,0.4)",
+              transition: "transform 0.2s",
+              transform: orgDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
               flexShrink: 0,
-            }}
-          />
-        ) : null}
-        <div>
-          <h2
-            style={{
-              fontFamily: displayFont,
-              fontSize: 18,
-              fontWeight: 600,
-              lineHeight: 1.2,
-              margin: 0,
-            }}
-          >
-            {orgName}
-          </h2>
-          <span
-            style={{
-              fontSize: 11,
-              color: "rgba(255,255,255,0.55)",
-              fontFamily: monoFont,
-            }}
-          >
-            Admin Console
-          </span>
+            }}>▼</span>
+          )}
         </div>
+
+        {/* Org switcher dropdown */}
+        {orgDropdownOpen && (
+          <div style={{
+            background: "#1a1a28",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}>
+            {/* Existing orgs list */}
+            {allOrgs.map((o) => {
+              const isCurrent = o.id === orgId;
+              return (
+                <button
+                  key={o.id}
+                  onClick={() => {
+                    if (!isCurrent && onOrgSwitch) onOrgSwitch(o);
+                    setOrgDropdownOpen(false);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    width: "100%",
+                    padding: "10px 20px",
+                    border: "none",
+                    background: isCurrent ? "rgba(255,255,255,0.06)" : "transparent",
+                    color: isCurrent ? "#fff" : "rgba(255,255,255,0.7)",
+                    fontSize: 13,
+                    fontWeight: isCurrent ? 600 : 400,
+                    cursor: isCurrent ? "default" : "pointer",
+                    textAlign: "left",
+                    fontFamily: fontStack,
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <span style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    background: isCurrent ? "rgba(45,106,106,0.4)" : "rgba(255,255,255,0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: isCurrent ? "#a3c9c9" : "rgba(255,255,255,0.5)",
+                    flexShrink: 0,
+                  }}>
+                    {o.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </span>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {o.name}
+                  </span>
+                  {isCurrent && (
+                    <span style={{ fontSize: 10, color: "#a3c9c9" }}>✓</span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Add new org button — Pro only, max 3 orgs */}
+            {onAddOrg ? (
+              <button
+                onClick={() => {
+                  setOrgDropdownOpen(false);
+                  onAddOrg();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  width: "100%",
+                  padding: "10px 20px",
+                  border: "none",
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  background: "transparent",
+                  color: "#a3c9c9",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: fontStack,
+                  transition: "background 0.15s",
+                }}
+              >
+                <span style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  border: "1.5px dashed rgba(163,201,201,0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 16,
+                  color: "#a3c9c9",
+                  flexShrink: 0,
+                }}>+</span>
+                Add Organization
+              </button>
+            ) : (
+              <div style={{
+                padding: "10px 20px",
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+                fontSize: 11,
+                color: "rgba(255,255,255,0.3)",
+                fontFamily: fontStack,
+              }}>
+                Up to 3 orgs on Pro
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

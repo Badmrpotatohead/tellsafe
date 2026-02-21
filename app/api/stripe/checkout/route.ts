@@ -8,12 +8,16 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb, adminCollections } from "../../../../lib/firebase-admin";
-import { getStripe, getPlanToPrice } from "../../../../lib/stripe";
+import { getStripe, getPriceId, type BillingInterval } from "../../../../lib/stripe";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orgId, plan } = body;
+    const { orgId, plan, interval = "month" } = body as {
+      orgId: string;
+      plan: string;
+      interval?: BillingInterval;
+    };
 
     if (!orgId || !plan) {
       return NextResponse.json({ error: "orgId and plan required" }, { status: 400 });
@@ -21,6 +25,10 @@ export async function POST(request: NextRequest) {
 
     if (plan !== "community" && plan !== "pro") {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+    }
+
+    if (interval !== "month" && interval !== "year") {
+      return NextResponse.json({ error: "Invalid interval — must be 'month' or 'year'" }, { status: 400 });
     }
 
     // Verify admin
@@ -67,11 +75,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Resolve price ID
-    const priceId = getPlanToPrice()[plan];
+    // Resolve price ID for the requested plan + billing interval
+    const priceId = getPriceId(plan, interval);
     if (!priceId) {
       return NextResponse.json(
-        { error: "Stripe price not configured for this plan" },
+        { error: `Stripe price not configured for ${plan} / ${interval}` },
         { status: 500 }
       );
     }
@@ -85,9 +93,10 @@ export async function POST(request: NextRequest) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}/admin?billing=success`,
       cancel_url: `${appUrl}/admin?billing=cancel`,
-      metadata: { orgId, plan },
+      // Pass plan + interval through so the webhook can persist both
+      metadata: { orgId, plan, interval },
       subscription_data: {
-        metadata: { orgId, plan },
+        metadata: { orgId, plan, interval },
       },
     });
 

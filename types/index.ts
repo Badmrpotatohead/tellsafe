@@ -77,6 +77,7 @@ export interface Organization {
   tagline: string;
   categories: Category[];
   plan: Plan;
+  billingInterval: "month" | "year" | null; // null for free plan
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   ownerId: string; // Firebase Auth UID of creator

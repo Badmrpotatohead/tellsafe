@@ -20,17 +20,41 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
-// Map Stripe Price IDs to TellSafe plan names
+// ---------------------------------------------------------------------------
+// Price ID → plan name
+// Covers all four price IDs: monthly + annual for community + pro
+// ---------------------------------------------------------------------------
 export function getPriceToPlan(): Record<string, "community" | "pro"> {
   return {
-    [process.env.STRIPE_PRICE_COMMUNITY || ""]: "community",
-    [process.env.STRIPE_PRICE_PRO || ""]: "pro",
+    [process.env.STRIPE_PRICE_COMMUNITY          || ""]: "community",
+    [process.env.STRIPE_PRICE_COMMUNITY_ANNUAL   || ""]: "community",
+    [process.env.STRIPE_PRICE_PRO                || ""]: "pro",
+    [process.env.STRIPE_PRICE_PRO_ANNUAL         || ""]: "pro",
   };
 }
 
+// ---------------------------------------------------------------------------
+// Plan + billing interval → price ID
+// ---------------------------------------------------------------------------
+export type BillingInterval = "month" | "year";
+
+export function getPriceId(
+  plan: "community" | "pro",
+  interval: BillingInterval
+): string {
+  const map: Record<string, string> = {
+    "community:month": process.env.STRIPE_PRICE_COMMUNITY        || "",
+    "community:year":  process.env.STRIPE_PRICE_COMMUNITY_ANNUAL || "",
+    "pro:month":       process.env.STRIPE_PRICE_PRO              || "",
+    "pro:year":        process.env.STRIPE_PRICE_PRO_ANNUAL       || "",
+  };
+  return map[`${plan}:${interval}`] || "";
+}
+
+// Legacy helper — kept for any callers that don't need interval awareness
 export function getPlanToPrice(): Record<string, string> {
   return {
     community: process.env.STRIPE_PRICE_COMMUNITY || "",
-    pro: process.env.STRIPE_PRICE_PRO || "",
+    pro:       process.env.STRIPE_PRICE_PRO       || "",
   };
 }

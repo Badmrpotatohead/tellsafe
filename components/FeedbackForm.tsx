@@ -404,14 +404,15 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
         <h1
           style={{
             fontFamily: displayFont,
-            fontSize: kioskMode ? 38 : 32,
+            fontSize: kioskMode ? 36 : 28,
             fontWeight: 600,
-            lineHeight: 1.2,
+            lineHeight: 1.25,
             marginBottom: 10,
             color: theme.ink,
           }}
         >
-          {t.shareYour} <span style={{ color: theme.primary }}>{t.feedback}</span>
+          How would you like to share with{" "}
+          <span style={{ color: theme.primary }}>{orgName}</span>?
         </h1>
         <p style={{ fontSize: kioskMode ? 17 : 15, color: theme.muted, maxWidth: 400, margin: "0 auto" }}>
           {tagline}

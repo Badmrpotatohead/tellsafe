@@ -22,6 +22,7 @@ import type { Organization } from "../types";
 interface AuthContextType {
   user: User | null;
   org: Organization | null;
+  allOrgs: Organization[];
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -36,6 +37,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [org, setOrg] = useState<Organization | null>(null);
+  const [allOrgs, setAllOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Load the user's org
         try {
           const orgs = await getMyOrganizations();
+          setAllOrgs(orgs);
           if (orgs.length > 0) {
             setOrg(orgs[0]); // Default to first org
           }
@@ -55,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setOrg(null);
+        setAllOrgs([]);
       }
       setLoading(false);
     });
@@ -134,12 +138,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshOrg = async () => {
     if (!user) return;
     const orgs = await getMyOrganizations();
+    setAllOrgs(orgs);
     if (orgs.length > 0) setOrg(orgs[0]);
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, org, loading, error, login, signup, logout, setOrg, refreshOrg }}
+      value={{ user, org, allOrgs, loading, error, login, signup, logout, setOrg, refreshOrg }}
     >
       {children}
     </AuthContext.Provider>
