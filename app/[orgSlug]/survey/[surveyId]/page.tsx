@@ -335,28 +335,41 @@ export default function SurveyPage({ params }: PageProps) {
                   {q.lowLabel && <span style={{ fontSize: 11, color: "#8a8578" }}>{q.lowLabel}</span>}
                   {q.highLabel && <span style={{ fontSize: 11, color: "#8a8578" }}>{q.highLabel}</span>}
                 </div>
-                <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                  {Array.from({ length: q.maxRating }, (_, i) => (
+                <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                  {Array.from({ length: q.maxRating }, (_, i) => {
+                    const val = i + 1;
+                    const selected = Number(answers[q.id]) === val;
+                    const filled = Number(answers[q.id]) >= val;
+                    return (
                     <button
                       key={i}
-                      onClick={() => setAnswer(q.id, i + 1)}
+                      type="button"
+                      onClick={() => setAnswer(q.id, val)}
                       style={{
-                        width: 48,
-                        height: 48,
+                        width: 52,
+                        height: 52,
                         borderRadius: 12,
-                        border: `2px solid ${answers[q.id] === i + 1 ? primaryColor : "#e8e5de"}`,
-                        background: answers[q.id] === i + 1 ? primaryColor : "#fff",
-                        color: answers[q.id] === i + 1 ? "#fff" : "#1a1a2e",
-                        fontSize: 18,
+                        border: `2px solid ${selected ? primaryColor : filled ? `${primaryColor}60` : "#e8e5de"}`,
+                        background: selected ? primaryColor : filled ? `${primaryColor}15` : "#fff",
+                        color: selected ? "#fff" : filled ? primaryColor : "#1a1a2e",
+                        fontSize: 20,
                         fontWeight: 700,
                         cursor: "pointer",
                         transition: "all 0.15s",
                         fontFamily: fontStack,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        WebkitTapHighlightColor: "transparent",
+                        touchAction: "manipulation",
+                        userSelect: "none",
                       }}
                     >
-                      {i + 1}
+                      ⭐
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -372,6 +385,7 @@ export default function SurveyPage({ params }: PageProps) {
                   return (
                     <button
                       key={oi}
+                      type="button"
                       onClick={() =>
                         q.allowMultiple
                           ? toggleMultiChoice(q.id, opt)
@@ -390,6 +404,9 @@ export default function SurveyPage({ params }: PageProps) {
                         textAlign: "left",
                         fontFamily: fontStack,
                         color: "#1a1a2e",
+                        WebkitTapHighlightColor: "transparent",
+                        touchAction: "manipulation",
+                        userSelect: "none",
                       }}
                     >
                       <span style={{
@@ -438,16 +455,17 @@ export default function SurveyPage({ params }: PageProps) {
               <div>
                 <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                   {[
-                    { val: true, label: "Yes", color: "#059669", bg: "#d1fae5" },
-                    { val: false, label: "No", color: "#dc2626", bg: "#fee2e2" },
+                    { val: true, label: "✅ Yes", color: "#059669", bg: "#d1fae5" },
+                    { val: false, label: "❌ No", color: "#dc2626", bg: "#fee2e2" },
                   ].map((opt) => (
                     <button
                       key={opt.label}
+                      type="button"
                       onClick={() => setAnswer(q.id, opt.val)}
                       style={{
                         flex: 1,
-                        padding: 14,
-                        borderRadius: 10,
+                        padding: 16,
+                        borderRadius: 12,
                         border: `2px solid ${answers[q.id] === opt.val ? opt.color : "#e8e5de"}`,
                         background: answers[q.id] === opt.val ? opt.bg : "#fff",
                         color: answers[q.id] === opt.val ? opt.color : "#1a1a2e",
@@ -456,6 +474,9 @@ export default function SurveyPage({ params }: PageProps) {
                         cursor: "pointer",
                         fontFamily: fontStack,
                         transition: "all 0.15s",
+                        WebkitTapHighlightColor: "transparent",
+                        touchAction: "manipulation",
+                        userSelect: "none",
                       }}
                     >
                       {opt.label}
@@ -526,6 +547,7 @@ export default function SurveyPage({ params }: PageProps) {
                       return (
                         <button
                           key={type}
+                          type="button"
                           onClick={() => setChosenResponseType(type)}
                           style={{
                             flex: 1,
@@ -539,6 +561,9 @@ export default function SurveyPage({ params }: PageProps) {
                             position: "relative",
                             transition: "all 0.15s",
                             fontFamily: fontStack,
+                            WebkitTapHighlightColor: "transparent",
+                            touchAction: "manipulation",
+                            userSelect: "none",
                           }}
                         >
                           {/* Selection circle */}
