@@ -4,6 +4,8 @@
 // Called by Vercel Cron every Monday at 2pm UTC.
 // Generates and sends weekly digest emails to all orgs.
 
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, adminCollections } from "../../../lib/firebase-admin";
 import { generateDigest } from "../../../lib/digest";

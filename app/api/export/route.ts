@@ -5,6 +5,8 @@
 // Pro plan feature — gated on the client side.
 // Requires auth token in Authorization header.
 
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminCollections } from "../../../lib/firebase-admin";
 import type { Feedback, Organization } from "../../../types";

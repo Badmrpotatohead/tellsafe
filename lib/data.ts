@@ -95,6 +95,7 @@ export async function updateOrganization(
       | "primaryColor"
       | "accentColor"
       | "tagline"
+      | "heroHeading"
       | "categories"
       | "webhookUrl"
       | "webhookEnabled"
