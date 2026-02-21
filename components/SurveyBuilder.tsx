@@ -57,8 +57,14 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
   const [title, setTitle] = useState(editSurvey?.title || "");
   const [description, setDescription] = useState(editSurvey?.description || "");
   const [questions, setQuestions] = useState<SurveyQuestion[]>(editSurvey?.questions || []);
-  const [responseType, setResponseType] = useState<"identified" | "anonymous" | "relay">(
-    editSurvey?.responseType ?? "anonymous"
+  // Multi-select: admins can allow 1–3 response modes.
+  // Seed from allowedResponseTypes if present, fall back to single responseType.
+  const [allowedResponseTypes, setAllowedResponseTypes] = useState<("identified" | "anonymous" | "relay")[]>(
+    editSurvey?.allowedResponseTypes?.length
+      ? editSurvey.allowedResponseTypes
+      : editSurvey?.responseType
+      ? [editSurvey.responseType]
+      : ["anonymous"]
   );
   const [closesAt, setClosesAt] = useState(editSurvey?.closesAt?.split("T")[0] || "");
   const [saving, setSaving] = useState(false);
@@ -166,7 +172,9 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
         title: title.trim(),
         description: description.trim(),
         questions,
-        responseType,
+        allowedResponseTypes,
+        // Keep responseType as the first allowed type for backward compat
+        responseType: allowedResponseTypes[0] ?? "anonymous",
         closesAt: closesAt ? new Date(closesAt + "T23:59:59").toISOString() : null,
         opensAt: null,
         templateId,
@@ -530,38 +538,78 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
           Settings
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Response type selector */}
+          {/* Response type selector — multi-select, up to 3 */}
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: theme.muted, marginBottom: 8 }}>Response Type</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: theme.muted }}>Who Can Respond?</div>
+              <div style={{ fontSize: 11, color: theme.muted, opacity: 0.7 }}>Choose up to 3</div>
+            </div>
             <div style={{ display: "flex", gap: 8 }}>
               {([
                 { value: "identified", icon: "👋", label: "Identified", desc: "Name & email required" },
-                { value: "anonymous", icon: "🎭", label: "Anonymous", desc: "No personal info collected" },
-                { value: "relay", icon: "🔒", label: "Relay", desc: "Encrypted — admin can reply" },
+                { value: "anonymous", icon: "🎭", label: "Anonymous", desc: "No personal info" },
+                { value: "relay", icon: "🔒", label: "Relay", desc: "Encrypted, can reply" },
               ] as const).map((opt) => {
-                const active = responseType === opt.value;
+                const selected = allowedResponseTypes.includes(opt.value);
+                const canSelect = !selected && allowedResponseTypes.length < 3;
+                const toggle = () => {
+                  if (selected) {
+                    // Must keep at least one selected
+                    if (allowedResponseTypes.length > 1) {
+                      setAllowedResponseTypes(allowedResponseTypes.filter((t) => t !== opt.value));
+                    }
+                  } else if (canSelect) {
+                    setAllowedResponseTypes([...allowedResponseTypes, opt.value]);
+                  }
+                };
                 return (
                   <button
                     key={opt.value}
-                    onClick={() => setResponseType(opt.value)}
+                    onClick={toggle}
                     style={{
                       flex: 1,
-                      padding: "10px 8px",
-                      borderRadius: 10,
-                      border: `2px solid ${active ? theme.primary : theme.divider}`,
-                      background: active ? `${theme.primary}10` : theme.paper,
-                      cursor: "pointer",
+                      padding: "12px 8px 10px",
+                      borderRadius: 12,
+                      border: `2px solid ${selected ? theme.primary : theme.divider}`,
+                      background: selected ? `${theme.primary}10` : theme.paper,
+                      cursor: selected && allowedResponseTypes.length === 1 ? "not-allowed" : "pointer",
                       textAlign: "center",
                       transition: "all 0.15s",
+                      position: "relative" as const,
+                      opacity: !selected && !canSelect ? 0.45 : 1,
                     }}
                   >
-                    <div style={{ fontSize: 18, marginBottom: 2 }}>{opt.icon}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: active ? theme.primary : theme.ink }}>{opt.label}</div>
-                    <div style={{ fontSize: 10, color: theme.muted, lineHeight: 1.3, marginTop: 2 }}>{opt.desc}</div>
+                    {/* Selection circle */}
+                    <div style={{
+                      position: "absolute" as const,
+                      top: 8,
+                      right: 8,
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      border: `2px solid ${selected ? theme.primary : theme.divider}`,
+                      background: selected ? theme.primary : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.15s",
+                    }}>
+                      {selected && (
+                        <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff" }} />
+                      )}
+                    </div>
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.icon}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: selected ? theme.primary : theme.ink, lineHeight: 1.2 }}>{opt.label}</div>
+                    <div style={{ fontSize: 10, color: theme.muted, lineHeight: 1.3, marginTop: 3 }}>{opt.desc}</div>
                   </button>
                 );
               })}
             </div>
+            {allowedResponseTypes.length > 1 && (
+              <div style={{ fontSize: 11, color: theme.muted, marginTop: 8 }}>
+                Respondents will choose between {allowedResponseTypes.length} option{allowedResponseTypes.length > 1 ? "s" : ""} when submitting.
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <label style={{ fontSize: 13, whiteSpace: "nowrap" }}>Auto-close on:</label>

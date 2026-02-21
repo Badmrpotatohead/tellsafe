@@ -27,6 +27,9 @@ export default function SurveyPage({ params }: PageProps) {
   const [name, setName] = useState("");
   const [identifiedEmail, setIdentifiedEmail] = useState("");
   const [relayEmail, setRelayEmail] = useState("");
+  // When survey allows multiple response types, respondent picks one.
+  // null means "not yet chosen" (only relevant when allowedResponseTypes.length > 1)
+  const [chosenResponseType, setChosenResponseType] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +110,13 @@ export default function SurveyPage({ params }: PageProps) {
   };
 
   const handleSubmit = async () => {
-    const responseType = survey.responseType ?? "anonymous";
+    // Determine effective response type
+    const allowedTypes: string[] = survey.allowedResponseTypes?.length
+      ? survey.allowedResponseTypes
+      : [survey.responseType ?? "anonymous"];
+    const responseType = allowedTypes.length > 1
+      ? (chosenResponseType ?? allowedTypes[0])
+      : allowedTypes[0];
 
     // Validate required questions
     const missing = survey.questions.filter(
@@ -115,6 +124,12 @@ export default function SurveyPage({ params }: PageProps) {
     );
     if (missing.length > 0) {
       setError(`Please answer all required questions (${missing.length} remaining)`);
+      return;
+    }
+
+    // If multiple types allowed, ensure one is chosen
+    if (allowedTypes.length > 1 && !chosenResponseType) {
+      setError("Please select how you'd like to respond.");
       return;
     }
 
@@ -150,6 +165,7 @@ export default function SurveyPage({ params }: PageProps) {
         body: JSON.stringify({
           orgId,
           answers: responseAnswers,
+          responseType, // tell the API which type the respondent chose
           respondentName: responseType === "identified" ? name.trim() : null,
           respondentEmail: responseType === "identified" ? identifiedEmail.trim() : null,
           relayEmail: responseType === "relay" ? relayEmail.trim() : null,
@@ -481,51 +497,111 @@ export default function SurveyPage({ params }: PageProps) {
           </div>
         ))}
 
-        {/* Respondent info — varies by responseType */}
-        {survey.responseType === "identified" && (
-          <div style={{ background: "#fff", borderRadius: 16, padding: 24, marginBottom: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: `1.5px solid ${primaryColor}30` }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#1a1a2e" }}>👋 Your details</div>
-            <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 12 }}>Your name and email will be visible to organizers.</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name *"
-                required
-                style={{ flex: 1, minWidth: 140, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }}
-              />
-              <input
-                value={identifiedEmail}
-                onChange={(e) => setIdentifiedEmail(e.target.value)}
-                placeholder="Your email *"
-                type="email"
-                required
-                style={{ flex: 1, minWidth: 140, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }}
-              />
+        {/* Respondent info — varies by responseType. Multi-type surveys show a picker first. */}
+        {(() => {
+          const allowedTypes: string[] = survey.allowedResponseTypes?.length
+            ? survey.allowedResponseTypes
+            : [survey.responseType ?? "anonymous"];
+          const isMulti = allowedTypes.length > 1;
+          const activeType = isMulti ? chosenResponseType : allowedTypes[0];
+
+          const TYPE_META: Record<string, { icon: string; label: string; desc: string; accentColor: string; bgColor: string }> = {
+            identified: { icon: "👋", label: "Identified", desc: "Your name & email will be visible to organizers.", accentColor: primaryColor, bgColor: `${primaryColor}18` },
+            anonymous:  { icon: "🎭", label: "Anonymous", desc: "No personal info collected. Your response cannot be traced.", accentColor: "#6b7280", bgColor: "#f3f4f6" },
+            relay:      { icon: "🔒", label: "Anonymous Relay", desc: "Your email is encrypted. Organizers can reply without knowing who you are.", accentColor: "#7c3aed", bgColor: "#f5f3ff" },
+          };
+
+          return (
+            <div style={{ marginBottom: 14 }}>
+              {/* Multi-type picker */}
+              {isMulti && (
+                <div style={{ background: "#fff", borderRadius: 16, padding: 20, marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#8a8578", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    How would you like to respond?
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {allowedTypes.map((type) => {
+                      const meta = TYPE_META[type];
+                      const selected = chosenResponseType === type;
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => setChosenResponseType(type)}
+                          style={{
+                            flex: 1,
+                            minWidth: 120,
+                            padding: "12px 10px 10px",
+                            borderRadius: 12,
+                            border: `2px solid ${selected ? meta.accentColor : "#e8e5de"}`,
+                            background: selected ? meta.bgColor : "#fafaf9",
+                            cursor: "pointer",
+                            textAlign: "center",
+                            position: "relative",
+                            transition: "all 0.15s",
+                            fontFamily: fontStack,
+                          }}
+                        >
+                          {/* Selection circle */}
+                          <div style={{
+                            position: "absolute",
+                            top: 8, right: 8,
+                            width: 14, height: 14,
+                            borderRadius: "50%",
+                            border: `2px solid ${selected ? meta.accentColor : "#d1d5db"}`,
+                            background: selected ? meta.accentColor : "transparent",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {selected && <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff" }} />}
+                          </div>
+                          <div style={{ fontSize: 20, marginBottom: 4 }}>{meta.icon}</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: selected ? meta.accentColor : "#1a1a2e" }}>{meta.label}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Identified fields */}
+              {activeType === "identified" && (
+                <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: `1.5px solid ${primaryColor}30` }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#1a1a2e" }}>👋 Your details</div>
+                  <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 12 }}>Your name and email will be visible to organizers.</div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name *" required
+                      style={{ flex: 1, minWidth: 140, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }} />
+                    <input value={identifiedEmail} onChange={(e) => setIdentifiedEmail(e.target.value)} placeholder="Your email *" type="email" required
+                      style={{ flex: 1, minWidth: 140, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Relay email field */}
+              {activeType === "relay" && (
+                <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: "1.5px solid #7c3aed30" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#1a1a2e" }}>🔒 Relay — stay anonymous</div>
+                  <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 12 }}>Your email is encrypted. Organizers can reply without knowing who you are.</div>
+                  <input value={relayEmail} onChange={(e) => setRelayEmail(e.target.value)} placeholder="Your email (encrypted) *" type="email" required
+                    style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none", boxSizing: "border-box" }} />
+                </div>
+              )}
+
+              {/* Anonymous notice */}
+              {activeType === "anonymous" && (
+                <div style={{ background: "#f3f4f6", borderRadius: 12, padding: "10px 16px", fontSize: 12, color: "#6b7280", display: "flex", alignItems: "center", gap: 8 }}>
+                  🎭 <span>Your response is completely anonymous — no personal info collected.</span>
+                </div>
+              )}
+
+              {/* Multi-type: nothing chosen yet */}
+              {isMulti && !activeType && (
+                <div style={{ background: "#f8f6f1", borderRadius: 12, padding: "10px 16px", fontSize: 12, color: "#8a8578", textAlign: "center" }}>
+                  Select how you'd like to respond above.
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {survey.responseType === "relay" && (
-          <div style={{ background: "#fff", borderRadius: 16, padding: 24, marginBottom: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: "1.5px solid #7c3aed30" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#1a1a2e" }}>🔒 Relay — stay anonymous</div>
-            <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 12 }}>Your email is encrypted. Organizers can reply without knowing who you are.</div>
-            <input
-              value={relayEmail}
-              onChange={(e) => setRelayEmail(e.target.value)}
-              placeholder="Your email (encrypted) *"
-              type="email"
-              required
-              style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none", boxSizing: "border-box" }}
-            />
-          </div>
-        )}
-
-        {survey.responseType === "anonymous" && (
-          <div style={{ background: "#f8f6f1", borderRadius: 12, padding: "10px 16px", marginBottom: 14, fontSize: 12, color: "#8a8578", display: "flex", alignItems: "center", gap: 8 }}>
-            🎭 <span>Your response is completely anonymous — no personal info collected.</span>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Submit */}
         <button

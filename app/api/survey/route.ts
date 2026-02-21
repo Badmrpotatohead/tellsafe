@@ -45,7 +45,7 @@ async function verifyAdmin(request: NextRequest, orgId: string): Promise<{ uid: 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orgId, title, description, questions, responseType, opensAt, closesAt, templateId } = body;
+    const { orgId, title, description, questions, responseType, allowedResponseTypes, opensAt, closesAt, templateId } = body;
 
     if (!orgId || !title || !questions?.length) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -76,6 +76,9 @@ export async function POST(request: NextRequest) {
       status: "draft" as const,
       responseCount: 0,
       responseType: (responseType as string) || "anonymous",
+      allowedResponseTypes: Array.isArray(allowedResponseTypes) && allowedResponseTypes.length > 0
+        ? allowedResponseTypes
+        : [(responseType as string) || "anonymous"],
       opensAt: opensAt || null,
       closesAt: closesAt || null,
       templateId: templateId || null,
@@ -154,6 +157,7 @@ export async function PUT(request: NextRequest) {
       "questions",
       "status",
       "responseType",
+      "allowedResponseTypes",
       "opensAt",
       "closesAt",
     ];

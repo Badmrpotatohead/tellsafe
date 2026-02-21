@@ -60,8 +60,12 @@ export interface Survey {
   questions: SurveyQuestion[];
   status: SurveyStatus;
   responseCount: number;
-  // Privacy — replaces old allowIdentified boolean
-  responseType: SurveyResponseType;
+  // Privacy — admins can allow one OR multiple response modes.
+  // allowedResponseTypes is the new multi-select field; if set, respondents
+  // choose from the allowed set at submission time.
+  // responseType is kept for backward compatibility with legacy surveys.
+  allowedResponseTypes?: SurveyResponseType[];
+  responseType: SurveyResponseType; // fallback for legacy / single-type surveys
   // Scheduling
   opensAt: string | null; // ISO date, null = immediately
   closesAt: string | null; // ISO date, null = manual close
