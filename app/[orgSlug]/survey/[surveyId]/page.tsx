@@ -126,12 +126,18 @@ export default function SurveyPage({ params }: PageProps) {
     );
     if (missing.length > 0) {
       setError(`Please answer all required questions (${missing.length} remaining)`);
+      // Scroll to the first unanswered required question
+      const firstMissing = document.getElementById(`question-${missing[0].id}`);
+      if (firstMissing) firstMissing.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
     // If multiple types allowed, ensure one is chosen
     if (allowedTypes.length > 1 && !chosenResponseType) {
       setError("Please select how you'd like to respond.");
+      // Scroll to the privacy selector
+      const privacySection = document.getElementById("survey-privacy-selector");
+      if (privacySection) privacySection.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
@@ -260,6 +266,21 @@ export default function SurveyPage({ params }: PageProps) {
           >
             Share Feedback →
           </a>
+          {/* Powered by TellSafe — survey success */}
+          <a
+            href="https://tellsafe.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "block",
+              marginTop: 24,
+              fontSize: 11,
+              color: "#8a8578",
+              textDecoration: "none",
+            }}
+          >
+            🛡️ Powered by TellSafe — Free anonymous feedback for your community
+          </a>
         </div>
       </div>
     );
@@ -322,6 +343,7 @@ export default function SurveyPage({ params }: PageProps) {
         {survey.questions.map((q: SurveyQuestion, qi: number) => (
           <div
             key={q.id}
+            id={`question-${q.id}`}
             style={{
               background: "#fff",
               borderRadius: 16,
@@ -542,12 +564,12 @@ export default function SurveyPage({ params }: PageProps) {
           };
 
           return (
-            <div style={{ marginBottom: 14 }}>
+            <div id="survey-privacy-selector" style={{ marginBottom: 14 }}>
               {/* Multi-type picker */}
               {isMulti && (
                 <div style={{ background: "#fff", borderRadius: 16, padding: 20, marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#8a8578", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    How would you like to respond?
+                    How would you like to respond? <span style={{ color: accentColor }}>*</span>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {allowedTypes.map((type) => {
@@ -629,7 +651,17 @@ export default function SurveyPage({ params }: PageProps) {
 
               {/* Multi-type: nothing chosen yet */}
               {isMulti && !activeType && (
-                <div style={{ background: "#f8f6f1", borderRadius: 12, padding: "10px 16px", fontSize: 12, color: "#8a8578", textAlign: "center" }}>
+                <div style={{
+                  background: error ? "#fee2e2" : "#f8f6f1",
+                  borderRadius: 12,
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  fontWeight: error ? 600 : 400,
+                  color: error ? "#dc2626" : "#8a8578",
+                  textAlign: "center",
+                  border: error ? "1.5px solid #fecaca" : "none",
+                  transition: "all 0.2s",
+                }}>
                   Select how you'd like to respond above.
                 </div>
               )}
@@ -661,7 +693,7 @@ export default function SurveyPage({ params }: PageProps) {
 
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: "#aaa" }}>
-          Powered by <a href="/" style={{ color: primaryColor, textDecoration: "none", fontWeight: 600 }}>TellSafe</a>
+          🛡️ Powered by <a href="https://tellsafe.app" target="_blank" rel="noopener noreferrer" style={{ color: primaryColor, textDecoration: "none", fontWeight: 600 }}>TellSafe</a>
           {" · "}
           <a href={`/${orgSlug}`} style={{ color: "#aaa", textDecoration: "none" }}>Share feedback instead →</a>
         </div>

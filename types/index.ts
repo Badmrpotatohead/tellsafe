@@ -82,6 +82,7 @@ export interface Organization {
   billingInterval: "month" | "year" | null; // null for free plan
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  isTrialing: boolean;
   trialEndsAt: string | null; // ISO date — set when trial starts, cleared when paid or expired
   ownerId: string; // Firebase Auth UID of creator
   submissionCount: number; // current month submissions
@@ -92,6 +93,8 @@ export interface Organization {
   // Weekly digest
   digestEnabled?: boolean;
   digestDay?: number; // 0=Sun..6=Sat, default 1 (Monday)
+  // White-label: hide "Powered by TellSafe" on public forms (Community+)
+  hidePoweredBy?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -105,11 +108,15 @@ export interface OrgAdmin {
   displayName: string;
   role: AdminRole;
   joinedAt: string;
+  // Notification preferences (defaults: true, true, false)
+  emailOnNewFeedback?: boolean;
+  emailOnUrgent?: boolean;
+  emailOnSurveyResponse?: boolean;
 }
 
 // --- Feedback ---
 export type FeedbackType = "identified" | "anonymous" | "relay";
-export type FeedbackStatus = "new" | "needs_reply" | "replied" | "resolved" | "archived";
+export type FeedbackStatus = "new" | "needs_reply" | "replied" | "resolved" | "reopened" | "archived";
 
 export interface FeedbackBase {
   id: string;
@@ -222,4 +229,20 @@ export interface SentimentResult {
   score: number; // -1 to 1
   label: "positive" | "neutral" | "negative" | "urgent";
   confidence: number;
+}
+
+// --- Promos (future — Firestore collection: promos) ---
+// Schema for contextual upgrade promotions.
+// Collection is empty now; billing page will check for matching
+// promos when a featureSource is provided.
+export interface Promo {
+  id: string;
+  code: string; // e.g., "BRANDING50"
+  description: string; // e.g., "50% off 3 months for branding upgraders"
+  discountPercent: number; // 0-100
+  durationMonths: number; // how many months the discount lasts
+  triggerSources: string[]; // which featureSource values trigger this promo, e.g., ["branding", "sentiment"]
+  active: boolean;
+  expiresAt: string; // ISO date
+  createdAt: string;
 }

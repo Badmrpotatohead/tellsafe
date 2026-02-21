@@ -32,18 +32,70 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
 
   const [privacy, setPrivacy] = useState<FeedbackType>("identified");
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  // Persist name/email in localStorage for returning users
+  const [name, setName] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try { return localStorage.getItem("tellsafe_name") || ""; } catch { return ""; }
+  });
+  const [email, setEmail] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try { return localStorage.getItem("tellsafe_email") || ""; } catch { return ""; }
+  });
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [kioskCountdown, setKioskCountdown] = useState<number | null>(null);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
   const langRef = useRef<HTMLDivElement>(null);
+
+  // Kiosk: auto-detect OS dark mode preference
+  const [kioskDark, setKioskDark] = useState(false);
+  useEffect(() => {
+    if (!kioskMode) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setKioskDark(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setKioskDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [kioskMode]);
+
+  // Kiosk dark mode palette (warm, not cold/blue)
+  const kioskDarkBg = "#1A1A1A";
+  const kioskDarkCard = "#2A2926";
+  const kioskDarkText = "#F2F0EB";
+  const kioskDarkMuted = "#8A8578";
+  const kioskDarkBorder = "#3A3835";
+  const kioskDarkInput = "#232220";
 
   const cfg = pConfig[privacy];
   const relayEnabled = org.plan !== "free";
+
+  // Field-level inline validation (shown after blur)
+  const markTouched = (field: string) => setTouchedFields((prev) => new Set(prev).add(field));
+  const fieldError = (field: string): string | null => {
+    if (!touchedFields.has(field)) return null;
+    switch (field) {
+      case "name":
+        if (privacy === "identified" && !name.trim()) return t.pleaseEnterName;
+        if (privacy === "identified" && name.trim().length > 100) return "Name is too long (max 100).";
+        return null;
+      case "email":
+        if ((privacy === "identified" || privacy === "relay") && !email.trim()) return t.pleaseEnterEmail;
+        if ((privacy === "identified" || privacy === "relay") && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return t.pleaseEnterValidEmail;
+        return null;
+      case "feedback":
+        if (!feedback.trim()) return "Please enter your feedback.";
+        if (feedback.trim().length > 5000) return "Feedback is too long (max 5,000 characters).";
+        return null;
+      case "categories":
+        if (categories.length > 0 && selectedCats.length === 0) return "Please select at least one category.";
+        return null;
+      default:
+        return null;
+    }
+  };
 
   // Close language dropdown on outside click
   useEffect(() => {
@@ -74,9 +126,24 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
   }, [kioskMode, submitted]);
 
   const handleSubmit = async () => {
-    if (!feedback.trim()) return;
+    if (!feedback.trim()) {
+      setError("Please enter your feedback.");
+      return;
+    }
+    if (feedback.trim().length > 5000) {
+      setError("Feedback is too long. Please keep it under 5,000 characters.");
+      return;
+    }
+    if (categories.length > 0 && selectedCats.length === 0) {
+      setError("Please select at least one category.");
+      return;
+    }
     if (privacy === "identified" && !name.trim()) {
       setError(t.pleaseEnterName);
+      return;
+    }
+    if (privacy === "identified" && name.trim().length > 100) {
+      setError("Name is too long. Please keep it under 100 characters.");
       return;
     }
     if ((privacy === "identified" || privacy === "relay") && !email.trim()) {
@@ -112,6 +179,14 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
         throw new Error(data.error || "Submission failed");
       }
 
+      // Save name/email for returning users
+      if (privacy === "identified" && name.trim()) {
+        try {
+          localStorage.setItem("tellsafe_name", name.trim());
+          localStorage.setItem("tellsafe_email", email.trim());
+        } catch {}
+      }
+
       setSubmitted(true);
     } catch (err: any) {
       console.error("Submit failed:", err);
@@ -124,11 +199,11 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
   const resetForm = () => {
     setSubmitted(false);
     setFeedback("");
-    setName("");
-    setEmail("");
+    // Keep name/email for returning users (pre-filled from localStorage)
     setSelectedCats([]);
     setError(null);
     setKioskCountdown(null);
+    setTouchedFields(new Set());
   };
 
   const btnText = submitting
@@ -214,17 +289,18 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
       <div
         style={{
           minHeight: "100vh",
-          background: `radial-gradient(ellipse 80% 50% at 30% 20%, ${theme.primaryGlow}, transparent), ${theme.paper}`,
+          background: kioskDark ? kioskDarkBg : `radial-gradient(ellipse 80% 50% at 30% 20%, ${theme.primaryGlow}, transparent), ${theme.paper}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontFamily: fontStack,
+          color: kioskDark ? kioskDarkText : "inherit",
           ...(kioskMode ? { userSelect: "none" as const } : {}),
         }}
       >
         <div
           style={{
-            background: theme.white,
+            background: kioskDark ? kioskDarkCard : theme.white,
             borderRadius: 24,
             padding: kioskMode ? 56 : 48,
             maxWidth: 500,
@@ -329,6 +405,25 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
               )}
             </>
           )}
+
+          {/* Powered by TellSafe — success screen */}
+          {!org.hidePoweredBy && (
+            <a
+              href="https://tellsafe.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "block",
+                marginTop: 24,
+                fontSize: 11,
+                color: kioskDark ? "rgba(242,240,235,0.4)" : theme.muted,
+                textDecoration: "none",
+                transition: "color 0.15s",
+              }}
+            >
+              🛡️ Powered by TellSafe — Free anonymous feedback for your community
+            </a>
+          )}
         </div>
       </div>
     );
@@ -339,12 +434,15 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
     <div
       style={{
         minHeight: "100vh",
-        background: `radial-gradient(ellipse 80% 50% at 20% 10%, ${theme.primaryGlow}, transparent), radial-gradient(ellipse 50% 40% at 80% 80%, ${theme.accentGlow}, transparent), ${theme.paper}`,
+        background: kioskDark
+          ? kioskDarkBg
+          : `radial-gradient(ellipse 80% 50% at 20% 10%, ${theme.primaryGlow}, transparent), radial-gradient(ellipse 50% 40% at 80% 80%, ${theme.accentGlow}, transparent), ${theme.paper}`,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         padding: kioskMode ? "24px 16px 40px" : "40px 16px 80px",
         fontFamily: fontStack,
+        color: kioskDark ? kioskDarkText : "inherit",
         ...(kioskMode ? { userSelect: "none" as const } : {}),
       }}
     >
@@ -419,28 +517,26 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
             </div>
           )}
         </div>
-        {org.plan !== "free" && (
-          <h1
-            style={{
-              fontFamily: displayFont,
-              fontSize: kioskMode ? 36 : 28,
-              fontWeight: 600,
-              lineHeight: 1.25,
-              marginBottom: 10,
-              color: theme.ink,
-            }}
-          >
-            {org.heroHeading ? (
-              org.heroHeading
-            ) : (
-              <>
-                How would you like to share with{" "}
-                <span style={{ color: theme.primary }}>{orgName}</span>?
-              </>
-            )}
-          </h1>
-        )}
-        <p style={{ fontSize: kioskMode ? 17 : 15, color: theme.muted, maxWidth: 400, margin: "0 auto" }}>
+        <h1
+          style={{
+            fontFamily: displayFont,
+            fontSize: kioskMode ? 36 : 28,
+            fontWeight: 600,
+            lineHeight: 1.25,
+            marginBottom: 10,
+            color: kioskDark ? kioskDarkText : theme.ink,
+          }}
+        >
+          {org.plan !== "free" && org.heroHeading ? (
+            org.heroHeading
+          ) : (
+            <>
+              How would you like to share with{" "}
+              <span style={{ color: theme.primary }}>{orgName}</span>?
+            </>
+          )}
+        </h1>
+        <p style={{ fontSize: kioskMode ? 17 : 15, color: kioskDark ? kioskDarkMuted : theme.muted, maxWidth: 400, margin: "0 auto" }}>
           {tagline}
         </p>
       </div>
@@ -448,11 +544,11 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
       {/* Form card */}
       <div
         style={{
-          background: theme.white,
+          background: kioskDark ? kioskDarkCard : theme.white,
           borderRadius: 24,
           width: "100%",
           maxWidth: kioskMode ? 620 : 560,
-          boxShadow: theme.shadowLg,
+          boxShadow: kioskDark ? "0 8px 32px rgba(0,0,0,0.4)" : theme.shadowLg,
           overflow: "hidden",
           animation: "fadeUp 0.6s ease 0.1s both",
         }}
@@ -545,11 +641,12 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onBlur={() => markTouched("name")}
                   placeholder={t.namePlaceholder}
                   style={{
                     width: "100%",
                     padding: kioskMode ? "14px 16px" : "11px 14px",
-                    border: `1.5px solid ${theme.divider}`,
+                    border: `1.5px solid ${fieldError("name") ? theme.accent : theme.divider}`,
                     borderRadius: 10,
                     fontSize: kioskMode ? 17 : 15,
                     color: theme.ink,
@@ -559,6 +656,9 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
                     boxSizing: "border-box" as const,
                   }}
                 />
+                {fieldError("name") && (
+                  <div style={{ fontSize: 11, color: theme.accent, marginTop: 4 }}>{fieldError("name")}</div>
+                )}
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 5 }}>
@@ -567,12 +667,13 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => markTouched("email")}
                   placeholder={t.emailPlaceholder}
                   type="email"
                   style={{
                     width: "100%",
                     padding: kioskMode ? "14px 16px" : "11px 14px",
-                    border: `1.5px solid ${theme.divider}`,
+                    border: `1.5px solid ${fieldError("email") ? theme.accent : theme.divider}`,
                     borderRadius: 10,
                     fontSize: kioskMode ? 17 : 15,
                     color: theme.ink,
@@ -582,6 +683,9 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
                     boxSizing: "border-box" as const,
                   }}
                 />
+                {fieldError("email") && (
+                  <div style={{ fontSize: 11, color: theme.accent, marginTop: 4 }}>{fieldError("email")}</div>
+                )}
               </div>
             </div>
           )}
@@ -598,12 +702,13 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => markTouched("email")}
                 placeholder={t.emailPlaceholder}
                 type="email"
                 style={{
                   width: "100%",
                   padding: kioskMode ? "14px 16px" : "11px 14px",
-                  border: `1.5px solid ${theme.divider}`,
+                  border: `1.5px solid ${fieldError("email") ? theme.accent : theme.divider}`,
                   borderRadius: 10,
                   fontSize: kioskMode ? 17 : 15,
                   color: theme.ink,
@@ -613,6 +718,9 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
                   boxSizing: "border-box" as const,
                 }}
               />
+              {fieldError("email") && (
+                <div style={{ fontSize: 11, color: theme.accent, marginTop: 4 }}>{fieldError("email")}</div>
+              )}
               <div
                 style={{
                   fontSize: 11,
@@ -636,11 +744,13 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
             <textarea
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
+              onBlur={() => markTouched("feedback")}
               placeholder={t.feedbackPlaceholder}
+              maxLength={5000}
               style={{
                 width: "100%",
                 padding: kioskMode ? "14px 16px" : "12px 14px",
-                border: `1.5px solid ${theme.divider}`,
+                border: `1.5px solid ${fieldError("feedback") ? theme.accent : theme.divider}`,
                 borderRadius: 10,
                 fontSize: kioskMode ? 17 : 15,
                 color: theme.ink,
@@ -653,6 +763,14 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
                 boxSizing: "border-box" as const,
               }}
             />
+            {fieldError("feedback") && (
+              <div style={{ fontSize: 11, color: theme.accent, marginTop: 4 }}>{fieldError("feedback")}</div>
+            )}
+            {feedback.length > 4500 && (
+              <div style={{ fontSize: 11, color: feedback.length > 4900 ? "#dc2626" : theme.muted, textAlign: "right", marginTop: 4 }}>
+                {feedback.length}/5,000
+              </div>
+            )}
           </div>
 
           {/* Error */}
@@ -713,13 +831,34 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
         </div>
       </div>
 
+      {/* Persistent powered-by footer */}
+      {!org.hidePoweredBy && (
+        <a
+          href="https://tellsafe.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "block",
+            marginTop: 28,
+            fontSize: 11,
+            color: kioskDark ? "rgba(242,240,235,0.35)" : theme.muted,
+            textDecoration: "none",
+            textAlign: "center",
+            opacity: 0.7,
+            transition: "opacity 0.15s",
+          }}
+        >
+          🛡️ Powered by TellSafe
+        </a>
+      )}
+
       {/* Kiosk fullscreen hint */}
       {kioskMode && (
         <div
           style={{
             marginTop: 16,
             fontSize: 11,
-            color: theme.muted,
+            color: kioskDark ? "rgba(242,240,235,0.3)" : theme.muted,
             opacity: 0.4,
             textAlign: "center",
           }}

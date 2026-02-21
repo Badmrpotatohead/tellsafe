@@ -17,13 +17,15 @@ const fontStack = "'Outfit', system-ui, sans-serif";
 export default function EmailVerificationBanner() {
   const { reloadUser } = useAuth();
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [checkStatus, setCheckStatus] = useState<"idle" | "checking" | "not_yet">("idle");
 
   const handleResend = async () => {
     const currentUser = auth.currentUser;
     if (!currentUser?.email) return;
     setStatus("sending");
     try {
-      const token = await currentUser.getIdToken();
+      // Force a fresh token to avoid stale/expired tokens
+      const token = await currentUser.getIdToken(true);
       const res = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: {
@@ -37,12 +39,29 @@ export default function EmailVerificationBanner() {
     } catch (err: any) {
       console.error("Failed to send verification email:", err);
       setStatus("error");
+      // Allow retry after 3 seconds
+      setTimeout(() => setStatus("idle"), 3000);
     }
   };
 
   const handleCheckVerified = async () => {
-    await reloadUser();
-    // The parent re-renders and checks user.emailVerified — if now true, banner disappears
+    setCheckStatus("checking");
+    try {
+      await reloadUser();
+      // Give state a moment to propagate — if still not verified, show feedback
+      setTimeout(() => {
+        const isNowVerified = auth.currentUser?.emailVerified;
+        if (!isNowVerified) {
+          setCheckStatus("not_yet");
+          setTimeout(() => setCheckStatus("idle"), 4000);
+        }
+        // If verified, parent re-renders and this banner unmounts
+      }, 300);
+    } catch (err) {
+      console.error("Failed to check verification:", err);
+      setCheckStatus("not_yet");
+      setTimeout(() => setCheckStatus("idle"), 4000);
+    }
   };
 
   return (
@@ -101,20 +120,26 @@ export default function EmailVerificationBanner() {
         )}
         <button
           onClick={handleCheckVerified}
+          disabled={checkStatus === "checking"}
           style={{
             padding: "5px 14px",
             border: "none",
             borderRadius: 7,
-            background: "rgba(255,255,255,0.15)",
+            background: checkStatus === "not_yet" ? "rgba(252,165,165,0.2)" : "rgba(255,255,255,0.15)",
             color: "#fff",
             fontSize: 12,
             fontWeight: 700,
-            cursor: "pointer",
+            cursor: checkStatus === "checking" ? "wait" : "pointer",
             fontFamily: fontStack,
             whiteSpace: "nowrap",
+            transition: "background 0.2s",
           }}
         >
-          I've verified →
+          {checkStatus === "checking"
+            ? "Checking..."
+            : checkStatus === "not_yet"
+            ? "Not verified yet — check your inbox"
+            : "I've verified →"}
         </button>
       </div>
     </div>

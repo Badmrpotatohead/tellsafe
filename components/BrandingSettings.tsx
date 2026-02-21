@@ -56,6 +56,7 @@ export default function BrandingSettings({ orgId }: Props) {
   const [catIconUploading, setCatIconUploading] = useState(false);
   const catIconRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [hidePoweredBy, setHidePoweredBy] = useState(org?.hidePoweredBy || false);
 
   const inputStyle = {
     width: "100%",
@@ -171,6 +172,7 @@ export default function BrandingSettings({ orgId }: Props) {
         accentColor,
         categories,
         logoUrl,
+        hidePoweredBy,
       });
       await refreshOrg();
       setSaved(true);
@@ -341,7 +343,24 @@ export default function BrandingSettings({ orgId }: Props) {
       {showPreview && <FormPreview />}
 
       {/* Logo Upload */}
-      <div style={{ marginBottom: 28, opacity: brandingLocked ? 0.5 : 1, pointerEvents: brandingLocked ? "none" : "auto" }}>
+      <div style={{ marginBottom: 28, position: "relative" }}>
+        {brandingLocked && (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 5,
+            background: "rgba(242,240,235,0.7)", backdropFilter: "blur(1px)",
+            borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <a href="#" onClick={(e) => { e.preventDefault(); window.location.hash = "billing"; }}
+              style={{
+                padding: "8px 18px", borderRadius: 8,
+                background: theme.violet, color: "#fff",
+                fontSize: 12, fontWeight: 700, textDecoration: "none",
+                boxShadow: "0 2px 8px rgba(124,58,237,0.3)",
+              }}>
+              Upgrade to Community+
+            </a>
+          </div>
+        )}
         <label style={labelStyle}>
           Organization Logo
           {brandingLocked && <span style={{ color: theme.violet, fontWeight: 500, marginLeft: 6 }}>Community+</span>}
@@ -446,7 +465,24 @@ export default function BrandingSettings({ orgId }: Props) {
       </div>
 
       {/* Hero Heading — Community+ */}
-      <div style={{ marginBottom: 22, opacity: brandingLocked ? 0.5 : 1, pointerEvents: brandingLocked ? "none" : "auto" }}>
+      <div style={{ marginBottom: 22, position: "relative" }}>
+        {brandingLocked && (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 5,
+            background: "rgba(242,240,235,0.7)", backdropFilter: "blur(1px)",
+            borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <a href="#" onClick={(e) => { e.preventDefault(); window.location.hash = "billing"; }}
+              style={{
+                padding: "8px 18px", borderRadius: 8,
+                background: theme.violet, color: "#fff",
+                fontSize: 12, fontWeight: 700, textDecoration: "none",
+                boxShadow: "0 2px 8px rgba(124,58,237,0.3)",
+              }}>
+              Upgrade to Community+
+            </a>
+          </div>
+        )}
         <label style={labelStyle}>
           Form Heading
           {brandingLocked && <span style={{ color: theme.violet, fontWeight: 500, marginLeft: 6 }}>Community+</span>}
@@ -469,10 +505,26 @@ export default function BrandingSettings({ orgId }: Props) {
           display: "flex",
           gap: 16,
           marginBottom: 28,
-          opacity: brandingLocked ? 0.5 : 1,
-          pointerEvents: brandingLocked ? "none" : "auto",
+          position: "relative",
         }}
       >
+        {brandingLocked && (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 5,
+            background: "rgba(242,240,235,0.7)", backdropFilter: "blur(1px)",
+            borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <a href="#" onClick={(e) => { e.preventDefault(); window.location.hash = "billing"; }}
+              style={{
+                padding: "8px 18px", borderRadius: 8,
+                background: theme.violet, color: "#fff",
+                fontSize: 12, fontWeight: 700, textDecoration: "none",
+                boxShadow: "0 2px 8px rgba(124,58,237,0.3)",
+              }}>
+              Upgrade to Community+
+            </a>
+          </div>
+        )}
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>
             Primary Color
@@ -653,7 +705,7 @@ export default function BrandingSettings({ orgId }: Props) {
                   value={newCatEmoji}
                   onChange={(e) => { setNewCatEmoji(e.target.value); setNewCatIconUrl(null); }}
                   placeholder="Or type any emoji..."
-                  maxLength={2}
+                  maxLength={4}
                   style={{ ...inputStyle, fontSize: 12, padding: "6px 10px" }}
                 />
               </div>
@@ -721,6 +773,63 @@ export default function BrandingSettings({ orgId }: Props) {
           </button>
         </div>
       </div>
+
+      {/* White-label: hide Powered by TellSafe (Community+ only) */}
+      {hasBranding && (
+        <div style={{ marginBottom: 24 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              padding: "14px 18px",
+              background: theme.paper,
+              borderRadius: 12,
+              border: `1.5px solid ${theme.divider}`,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: theme.ink }}>
+                Hide &ldquo;Powered by TellSafe&rdquo;
+              </div>
+              <div style={{ fontSize: 11, color: theme.muted, marginTop: 2 }}>
+                Remove TellSafe branding from your public forms
+              </div>
+            </div>
+            <button
+              onClick={() => setHidePoweredBy(!hidePoweredBy)}
+              aria-checked={hidePoweredBy}
+              role="switch"
+              style={{
+                position: "relative",
+                width: 44,
+                height: 24,
+                borderRadius: 12,
+                border: "none",
+                background: hidePoweredBy ? theme.primary : theme.divider,
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "background 0.2s",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 2,
+                  left: hidePoweredBy ? 22 : 2,
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                  transition: "left 0.2s",
+                }}
+              />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Save button */}
       <button

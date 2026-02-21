@@ -65,11 +65,17 @@ export default function QRCodeGenerator({ orgSlug }: Props) {
     ctx.roundRect(0, 0, totalWidth, totalHeight, 16);
     ctx.fill();
 
-    // Header
+    // Header — truncate long org names to fit canvas width
     ctx.fillStyle = "#1a1a2e";
     ctx.font = "bold 20px Outfit, system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(orgName, totalWidth / 2, padding + 24);
+    let displayOrgName = orgName;
+    const maxTextWidth = totalWidth - padding * 2;
+    while (ctx.measureText(displayOrgName).width > maxTextWidth && displayOrgName.length > 3) {
+      displayOrgName = displayOrgName.slice(0, -1);
+    }
+    if (displayOrgName !== orgName) displayOrgName += "\u2026";
+    ctx.fillText(displayOrgName, totalWidth / 2, padding + 24);
 
     ctx.fillStyle = "#8a8578";
     ctx.font = "14px Outfit, system-ui, sans-serif";
@@ -122,7 +128,7 @@ export default function QRCodeGenerator({ orgSlug }: Props) {
           marginBottom: 24,
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4, color: theme.ink }}>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4, color: theme.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
           {orgName}
         </div>
         <div style={{ fontSize: 13, color: theme.muted, marginBottom: 20 }}>

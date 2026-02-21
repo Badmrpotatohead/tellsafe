@@ -19,6 +19,7 @@ const displayFont = "'Fraunces', Georgia, serif";
 interface Props {
   orgId: string;
   billingStatus?: "success" | "cancel" | null;
+  featureSource?: string | null; // e.g., "analytics", "branding" — for future promo matching
 }
 
 type BillingInterval = "month" | "year";

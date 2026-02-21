@@ -220,6 +220,42 @@ export async function POST(request: NextRequest, context: RouteContext) {
       updatedAt: now,
     });
 
+    // --- Notify admins who opted in to survey response emails ---
+    try {
+      const adminsSnap = await adminDb
+        .collection("organizations")
+        .doc(orgId)
+        .collection("admins")
+        .get();
+
+      const adminEmails = adminsSnap.docs
+        .filter((d) => {
+          const data = d.data();
+          // emailOnSurveyResponse defaults to false — only email if explicitly true
+          return data.emailOnSurveyResponse === true;
+        })
+        .map((d) => d.data().email)
+        .filter(Boolean) as string[];
+
+      if (adminEmails.length > 0) {
+        const { sendNewFeedbackNotification } = await import("../../../../../lib/email");
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://tellsafe.vercel.app";
+        const orgSnap2 = await adminDb.collection("organizations").doc(orgId).get();
+        const orgName = orgSnap2.data()?.name || "your organization";
+
+        await sendNewFeedbackNotification({
+          adminEmails,
+          orgName,
+          feedbackType: responseType as any,
+          category: `Survey: ${survey.title}`,
+          previewText: `New response to "${survey.title}"`,
+          dashboardUrl: `${appUrl}/admin`,
+        });
+      }
+    } catch (err) {
+      console.error("Survey response notification email failed (non-blocking):", err);
+    }
+
     return NextResponse.json({ success: true, responseId: responseRef.id });
   } catch (err) {
     console.error("Submit survey response error:", err);

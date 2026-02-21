@@ -9,6 +9,7 @@ import { useBrand } from "./BrandProvider";
 import { useAuth } from "./AuthProvider";
 import {
   updateFeedbackStatus,
+  updateFeedbackCategories,
   getOrCreateThread,
   sendAdminReply,
   subscribeThreadMessages,
@@ -37,7 +38,22 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
   const [loadingThread, setLoadingThread] = useState(false);
   const [templates, setTemplates] = useState<ResponseTemplate[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [editingCategories, setEditingCategories] = useState(false);
+  const [editCats, setEditCats] = useState<string[]>(f.categories);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Reset state when switching feedback items
+  useEffect(() => {
+    setStatus(f.status);
+    setReplyText("");
+    setSending(false);
+    setThreadId((f as any).threadId || null);
+    setMessages([]);
+    setLoadingThread(false);
+    setShowTemplates(false);
+    setEditingCategories(false);
+    setEditCats(f.categories);
+  }, [f.id]);
 
   const hasTemplates = org ? PLAN_LIMITS[org.plan].hasTemplates : false;
 
@@ -106,13 +122,19 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
   };
   const tc = typeLabels[f.type] || typeLabels.anonymous;
 
-  const statusOptions: { value: FeedbackStatus; label: string; color: string }[] = [
+  const allStatusOptions: { value: FeedbackStatus; label: string; color: string }[] = [
     { value: "new", label: "New", color: theme.accent },
     { value: "needs_reply", label: "Needs Reply", color: theme.accent },
     { value: "replied", label: "Replied", color: theme.primary },
+    { value: "reopened", label: "↩ Reopened", color: "#d97706" },
     { value: "resolved", label: "Resolved", color: theme.muted },
     { value: "archived", label: "📦 Archive", color: theme.muted },
   ];
+
+  // Hide reply-related statuses for anonymous feedback (no way to reply)
+  const statusOptions = f.type === "anonymous"
+    ? allStatusOptions.filter((o) => o.value !== "needs_reply" && o.value !== "replied" && o.value !== "reopened")
+    : allStatusOptions;
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
@@ -127,31 +149,69 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
   };
 
   return (
+    <>
+    {/* Backdrop — click outside to close */}
     <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99,
+        background: "rgba(0,0,0,0.15)",
+        animation: "fadeInBackdrop 0.2s ease",
+      }}
+    />
+    <div
+      className="admin-feedback-detail"
       style={{
         position: "fixed",
         top: 0,
         right: 0,
         bottom: 0,
         width: 500,
-        background: "#fff",
+        background: "var(--admin-card, #fff)",
         boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
         zIndex: 100,
         display: "flex",
         flexDirection: "column",
         fontFamily: fontStack,
         animation: "slideInRight 0.25s ease",
+        color: "var(--admin-text, #1a1a2e)",
       }}
     >
       <style>{`
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes fadeInBackdrop { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
+
+      {/* ====== Back button (visible on small screens via CSS) ====== */}
+      <button
+        className="admin-detail-back"
+        onClick={onClose}
+        style={{
+          display: "none",
+          alignItems: "center",
+          gap: 6,
+          padding: "10px 20px",
+          background: "var(--admin-bg-alt, #f8f6f1)",
+          border: "none",
+          borderBottom: "1px solid var(--admin-border, #e8e5de)",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--admin-primary, #2d6a6a)",
+          cursor: "pointer",
+          fontFamily: fontStack,
+          flexShrink: 0,
+        }}
+      >
+        ← Back to Inbox
+      </button>
 
       {/* ====== Header ====== */}
       <div
         style={{
           padding: "16px 20px",
-          borderBottom: `1px solid #e8e5de`,
+          borderBottom: "1px solid var(--admin-border, #e8e5de)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -197,25 +257,97 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
 
         {/* --- Feedback Info Section --- */}
         <div style={{ padding: "20px 20px 16px" }}>
-          {/* Categories */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-            {f.categories.map((cat) => (
-              <span
-                key={cat}
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  padding: "3px 10px",
-                  borderRadius: 6,
-                  background: "#f2f0eb",
-                  color: "#8a8578",
-                }}
-              >
-                {cat}
-              </span>
-            ))}
+          {/* Categories — clickable to edit */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
+            {editingCategories ? (
+              <>
+                {(org?.categories || []).map((c) => {
+                  const active = editCats.includes(c.label);
+                  return (
+                    <button
+                      key={c.label}
+                      onClick={() => setEditCats((prev) =>
+                        prev.includes(c.label)
+                          ? prev.filter((x) => x !== c.label)
+                          : [...prev, c.label]
+                      )}
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        padding: "3px 10px",
+                        borderRadius: 6,
+                        border: `1.5px solid ${active ? theme.primary : "var(--admin-border, #e8e5de)"}`,
+                        background: active ? `${theme.primary}15` : "var(--admin-bg, #f2f0eb)",
+                        color: active ? theme.primary : "var(--admin-text-muted, #8a8578)",
+                        cursor: "pointer",
+                        fontFamily: fontStack,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {active ? "✓ " : ""}{c.emoji} {c.label}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={async () => {
+                    if (editCats.length > 0) {
+                      await updateFeedbackCategories(orgId, f.id, editCats);
+                    }
+                    setEditingCategories(false);
+                  }}
+                  style={{
+                    fontSize: 10, fontWeight: 700, padding: "3px 10px",
+                    borderRadius: 6, border: "none", cursor: "pointer",
+                    background: theme.primary, color: "#fff", fontFamily: fontStack,
+                  }}
+                >
+                  ✓ Save
+                </button>
+                <button
+                  onClick={() => { setEditCats(f.categories); setEditingCategories(false); }}
+                  style={{
+                    fontSize: 10, fontWeight: 600, padding: "3px 8px",
+                    borderRadius: 6, border: "none", cursor: "pointer",
+                    background: "transparent", color: "var(--admin-text-muted, #8a8578)", fontFamily: fontStack,
+                  }}
+                >
+                  ✕
+                </button>
+              </>
+            ) : (
+              <>
+                {f.categories.map((cat) => (
+                  <span
+                    key={cat}
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      padding: "3px 10px",
+                      borderRadius: 6,
+                      background: "var(--admin-bg, #f2f0eb)",
+                      color: "var(--admin-text-muted, #8a8578)",
+                    }}
+                  >
+                    {cat}
+                  </span>
+                ))}
+                <button
+                  onClick={() => { setEditCats(f.categories); setEditingCategories(true); }}
+                  title="Edit categories"
+                  style={{
+                    fontSize: 10, color: "var(--admin-text-muted, #8a8578)", background: "none",
+                    border: "none", cursor: "pointer", padding: "2px 4px", opacity: 0.6,
+                    fontFamily: fontStack, transition: "opacity 0.15s",
+                  }}
+                >
+                  ✏️
+                </button>
+              </>
+            )}
           </div>
 
           {/* Timestamp */}
@@ -239,7 +371,7 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: theme.accent, marginBottom: 6 }}>
                 Contact Info
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2, color: "#1a1a2e" }}>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2, color: "var(--admin-text, #1a1a2e)" }}>
                 {contactName}
               </div>
               {contactEmail && (
@@ -305,17 +437,17 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--admin-text, #1a1a2e)" }}>
                   {f.type === "identified" ? (contactName || "Member") : "Anonymous Member"}
                 </span>
-                <span style={{ fontSize: 10, color: "#8a8578" }}>{formatTime(f.createdAt)}</span>
+                <span style={{ fontSize: 10, color: "var(--admin-text-muted, #8a8578)" }}>{formatTime(f.createdAt)}</span>
               </div>
               <div
                 style={{
                   fontSize: 14,
                   lineHeight: 1.6,
-                  color: "#1a1a2e",
-                  background: "#f8f6f1",
+                  color: "var(--admin-text, #1a1a2e)",
+                  background: "var(--admin-bg, #f8f6f1)",
                   borderRadius: "4px 14px 14px 14px",
                   padding: "12px 16px",
                   whiteSpace: "pre-wrap",
@@ -348,17 +480,17 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexDirection: isAdmin ? "row-reverse" : "row" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--admin-text, #1a1a2e)" }}>
                       {isAdmin ? (msg.authorName || "Admin") : "Member"}
                     </span>
-                    <span style={{ fontSize: 10, color: "#8a8578" }}>{formatTime(msg.createdAt)}</span>
+                    <span style={{ fontSize: 10, color: "var(--admin-text-muted, #8a8578)" }}>{formatTime(msg.createdAt)}</span>
                   </div>
                   <div
                     style={{
                       fontSize: 14,
                       lineHeight: 1.6,
-                      color: "#1a1a2e",
-                      background: isAdmin ? `${theme.primary}10` : "#f8f6f1",
+                      color: "var(--admin-text, #1a1a2e)",
+                      background: isAdmin ? `${theme.primary}10` : "var(--admin-bg, #f8f6f1)",
                       borderRadius: isAdmin ? "14px 4px 14px 14px" : "4px 14px 14px 14px",
                       padding: "12px 16px",
                       whiteSpace: "pre-wrap",
@@ -376,7 +508,7 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
       </div>
 
       {/* ====== Footer ====== */}
-      <div style={{ flexShrink: 0, borderTop: "1px solid #e8e5de" }}>
+      <div style={{ flexShrink: 0, borderTop: "1px solid var(--admin-border, #e8e5de)" }}>
 
         {/* Status bar */}
         <div style={{ padding: "12px 20px", display: "flex", gap: 6 }}>
@@ -388,9 +520,9 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
                 flex: 1,
                 padding: "6px 4px",
                 borderRadius: 6,
-                border: `1.5px solid ${status === opt.value ? opt.color : "#e8e5de"}`,
-                background: status === opt.value ? opt.color + "12" : "#fff",
-                color: status === opt.value ? opt.color : "#8a8578",
+                border: `1.5px solid ${status === opt.value ? opt.color : "var(--admin-border, #e8e5de)"}`,
+                background: status === opt.value ? opt.color + "12" : "var(--admin-card, #fff)",
+                color: status === opt.value ? opt.color : "var(--admin-text-muted, #8a8578)",
                 fontSize: 10,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -446,12 +578,12 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
                         style={{
                           padding: "5px 12px",
                           borderRadius: 8,
-                          border: `1px solid #e8e5de`,
-                          background: "#f8f6f1",
+                          border: "1px solid var(--admin-border, #e8e5de)",
+                          background: "var(--admin-bg, #f8f6f1)",
                           fontSize: 11,
                           fontWeight: 600,
                           cursor: "pointer",
-                          color: "#1a1a2e",
+                          color: "var(--admin-text, #1a1a2e)",
                           fontFamily: fontStack,
                           transition: "all 0.15s",
                         }}
@@ -484,7 +616,9 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
                 flex: 1,
                 padding: "10px 14px",
                 borderRadius: 10,
-                border: "1.5px solid #e8e5de",
+                border: "1.5px solid var(--admin-border, #e8e5de)",
+                background: "var(--admin-input-bg, #fff)",
+                color: "var(--admin-text, #1a1a2e)",
                 fontSize: 13,
                 fontFamily: fontStack,
                 resize: "none",
@@ -516,5 +650,6 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
         )}
       </div>
     </div>
+    </>
   );
 }

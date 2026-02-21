@@ -69,6 +69,7 @@ export default function AnalyticsDashboard({ orgId }: Props) {
       needs_reply: filtered.filter((f) => f.status === "needs_reply").length,
       replied: filtered.filter((f) => f.status === "replied").length,
       resolved: filtered.filter((f) => f.status === "resolved").length,
+      reopened: filtered.filter((f) => f.status === "reopened").length,
     };
     const bySentiment = {
       positive: filtered.filter((f) => f.sentimentLabel === "positive").length,
@@ -89,8 +90,9 @@ export default function AnalyticsDashboard({ orgId }: Props) {
       })
     );
 
-    // Resolution rate
+    // Resolution rate (reopened items count as not resolved)
     const closedCount = byStatus.resolved + byStatus.replied;
+    const reopenedCount = byStatus.reopened;
     const resolutionRate = total > 0 ? Math.round((closedCount / total) * 100) : 0;
 
     // Avg sentiment score
@@ -214,13 +216,15 @@ export default function AnalyticsDashboard({ orgId }: Props) {
           {
             label: "Total Submissions",
             value: stats.total,
-            sub: `${stats.byStatus.new + stats.byStatus.needs_reply} pending`,
+            sub: `${stats.byStatus.new + stats.byStatus.needs_reply + stats.byStatus.reopened} pending`,
             color: stats.byStatus.needs_reply > 0 ? theme.accent : theme.muted,
           },
           {
             label: "Resolution Rate",
             value: `${stats.resolutionRate}%`,
-            sub: `${stats.byStatus.resolved + stats.byStatus.replied} resolved`,
+            sub: stats.byStatus.reopened > 0
+              ? `${stats.byStatus.resolved + stats.byStatus.replied} resolved · ${stats.byStatus.reopened} reopened`
+              : `${stats.byStatus.resolved + stats.byStatus.replied} resolved`,
             color: stats.resolutionRate >= 80 ? "#059669" : stats.resolutionRate >= 50 ? "#d97706" : "#dc2626",
           },
           {

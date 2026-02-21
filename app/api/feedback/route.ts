@@ -166,10 +166,21 @@ export async function POST(request: NextRequest) {
       submissionCount: FieldValue.increment(1),
     });
 
-    // --- Notify admins via email ---
+    // --- Notify admins via email (per-admin preference check) ---
     try {
       const adminsSnap = await adminCollections.admins(orgId).get();
+      const isUrgent = feedbackData.sentimentLabel === "urgent";
+
+      // Filter admins based on their notification preferences
       const adminEmails = adminsSnap.docs
+        .filter((d) => {
+          const data = d.data();
+          // Default to true if preference not set (backwards-compatible)
+          const wantsNewFeedback = data.emailOnNewFeedback !== false;
+          const wantsUrgent = data.emailOnUrgent !== false;
+          // Send if: admin wants new feedback emails, OR if it's urgent and they want urgent emails
+          return wantsNewFeedback || (isUrgent && wantsUrgent);
+        })
         .map((d) => d.data().email)
         .filter(Boolean) as string[];
 

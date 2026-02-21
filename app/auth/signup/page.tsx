@@ -19,7 +19,13 @@ export default function SignupPage() {
   const [step, setStep] = useState<"account" | "org" | "done">("account");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,6 +43,34 @@ export default function SignupPage() {
 
   const handleAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEmailError(null);
+    setPasswordError(null);
+    // Client-side email confirmation
+    if (email !== confirmEmail) {
+      setEmailError("Email addresses don't match.");
+      return;
+    }
+    // Client-side password validation
+    if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setPasswordError("Password needs at least one uppercase letter.");
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setPasswordError("Password needs at least one lowercase letter.");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setPasswordError("Password needs at least one number.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setPasswordError("Passwords don't match.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -171,24 +205,78 @@ export default function SignupPage() {
                   Your Name
                 </label>
                 <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Chris Martinez" required style={inputStyle} />
+                  placeholder="Jane Doe" required style={inputStyle} />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 5 }}>
                   Email
                 </label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
                   placeholder="you@example.com" required style={inputStyle} />
               </div>
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 5 }}>
+                  Confirm Email
+                </label>
+                <input type="email" value={confirmEmail} onChange={(e) => { setConfirmEmail(e.target.value); setEmailError(null); }}
+                  placeholder="Re-enter your email" required style={inputStyle} />
+                {emailError && (
+                  <div style={{ fontSize: 12, color: "#dc2626", marginTop: 6, fontWeight: 600 }}>
+                    {emailError}
+                  </div>
+                )}
+              </div>
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 5 }}>
                   Password
                 </label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters" required minLength={8} style={inputStyle} />
+                <div style={{ position: "relative" }}>
+                  <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => { setPassword(e.target.value); setPasswordError(null); }}
+                    placeholder="At least 8 characters" required style={{ ...inputStyle, paddingRight: 44 }} />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                      background: "none", border: "none", fontSize: 16, cursor: "pointer",
+                      color: "#8a8578", padding: "4px 6px", lineHeight: 1,
+                    }}
+                    tabIndex={-1}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
                 <div style={{ fontSize: 11, color: "#8a8578", marginTop: 4 }}>
                   Must be 8+ characters with uppercase, lowercase, and a number.
                 </div>
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 5 }}>
+                  Confirm Password
+                </label>
+                <div style={{ position: "relative" }}>
+                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(null); }}
+                    placeholder="Re-enter your password" required style={{ ...inputStyle, paddingRight: 44 }} />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{
+                      position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                      background: "none", border: "none", fontSize: 16, cursor: "pointer",
+                      color: "#8a8578", padding: "4px 6px", lineHeight: 1,
+                    }}
+                    tabIndex={-1}
+                    title={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
+                {passwordError && (
+                  <div style={{ fontSize: 12, color: "#dc2626", marginTop: 6, fontWeight: 600 }}>
+                    {passwordError}
+                  </div>
+                )}
               </div>
 
               {error === "email-exists" ? (
@@ -349,7 +437,7 @@ export default function SignupPage() {
               <strong style={{ color: "#1a1a2e" }}>{orgName}</strong> is ready. Your community can start sharing feedback right now.
             </p>
 
-            {/* "Add another org?" prompt */}
+            {/* Pro trial info */}
             <div style={{
               background: "#f8f6f1",
               borderRadius: 14,
@@ -359,45 +447,26 @@ export default function SignupPage() {
               border: "1.5px solid rgba(26,26,46,0.06)",
             }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", margin: "0 0 6px" }}>
-                🎁 Want more? First month free.
+                Your 30-day Pro trial is active
               </p>
               <p style={{ fontSize: 13, color: "#8a8578", margin: "0 0 12px", lineHeight: 1.5 }}>
-                If you manage multiple communities, the <strong>Pro plan</strong> lets you run up to 3 organizations from one account — and your <strong>first month is free, no credit card needed</strong>. You can upgrade or add more anytime from the{" "}
-                <strong style={{ color: "#2d6a6a" }}>dropdown in the top-left of your dashboard</strong>.
+                You have full access to every Pro feature — relay messaging, analytics, surveys, custom branding, and more. No credit card required. After 30 days, pick the plan that fits.
               </p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
-                <a
-                  href="/admin"
-                  style={{
-                    display: "inline-block",
-                    padding: "9px 20px",
-                    background: "#2d6a6a",
-                    color: "#fff",
-                    borderRadius: 9,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    textDecoration: "none",
-                  }}
-                >
-                  Go to Dashboard →
-                </a>
-                <a
-                  href="/admin?billing=upgrade"
-                  style={{
-                    display: "inline-block",
-                    padding: "9px 20px",
-                    border: "1.5px solid #2d6a6a",
-                    color: "#2d6a6a",
-                    borderRadius: 9,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    textDecoration: "none",
-                    background: "transparent",
-                  }}
-                >
-                  Try Free for 1 Month →
-                </a>
-              </div>
+              <a
+                href="/admin"
+                style={{
+                  display: "inline-block",
+                  padding: "9px 20px",
+                  background: "#2d6a6a",
+                  color: "#fff",
+                  borderRadius: 9,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                Go to Dashboard →
+              </a>
             </div>
           </div>
         )}

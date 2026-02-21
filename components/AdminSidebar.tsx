@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useBrand } from "./BrandProvider";
 import { useAuth } from "./AuthProvider";
+import { useAdminTheme } from "./AdminThemeProvider";
 import { subscribeFeedback } from "../lib/data";
 import { PLAN_LIMITS } from "../types";
 import type { Feedback, Plan, Organization } from "../types";
@@ -15,7 +16,7 @@ const displayFont = "'Fraunces', Georgia, serif";
 const monoFont = "'JetBrains Mono', monospace";
 const fontStack = "'Outfit', system-ui, sans-serif";
 
-type AdminView = "inbox" | "needs_reply" | "resolved" | "urgent" | "branding" | "team" | "qr" | "templates" | "analytics" | "surveys" | "survey_build" | "survey_results" | "billing" | "updates" | "integrations";
+type AdminView = "inbox" | "needs_reply" | "resolved" | "urgent" | "branding" | "team" | "qr" | "templates" | "analytics" | "surveys" | "survey_build" | "survey_results" | "billing" | "updates" | "integrations" | "notifications" | "profile";
 
 // Views that require specific plan features
 const PRO_VIEWS: AdminView[] = ["analytics", "templates"];
@@ -29,14 +30,17 @@ interface Props {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
   plan?: Plan;
+  isTrialing?: boolean;
+  trialEndsAt?: string | null;
   allOrgs?: Organization[];
   onOrgSwitch?: (org: Organization) => void;
   onAddOrg?: () => void;
 }
 
-export default function AdminSidebar({ orgId, activeView, onNavigate, activeCategory, onCategoryFilter, mobileOpen, onMobileClose, plan = "free", allOrgs = [], onOrgSwitch, onAddOrg }: Props) {
+export default function AdminSidebar({ orgId, activeView, onNavigate, activeCategory, onCategoryFilter, mobileOpen, onMobileClose, plan = "free", isTrialing = false, trialEndsAt = null, allOrgs = [], onOrgSwitch, onAddOrg }: Props) {
   const { theme, orgName, logoUrl } = useBrand();
   const { logout } = useAuth();
+  const { isDark, toggle: toggleTheme } = useAdminTheme();
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const orgDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -92,8 +96,11 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
     { icon: "👥", label: "Team Access", view: "team" as AdminView, active: activeView === "team" },
     { icon: "🔗", label: "QR Code & Link", view: "qr" as AdminView, active: activeView === "qr" },
     { icon: "🔌", label: "Integrations", view: "integrations" as AdminView, active: activeView === "integrations", proTag: !limits.hasWebhooks },
+    { icon: "👤", label: "Account", view: "profile" as AdminView, active: activeView === "profile" },
+    { icon: "🔔", label: "Notifications", view: "notifications" as AdminView, active: activeView === "notifications" },
     { icon: "💳", label: "Billing", view: "billing" as AdminView, active: activeView === "billing" },
     { sep: true },
+    { icon: isDark ? "☀️" : "🌙", label: isDark ? "Light Mode" : "Dark Mode", onClick: toggleTheme },
     { icon: "🚪", label: "Sign Out", onClick: logout },
   ];
 
@@ -485,6 +492,38 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
           );
         })}
       </nav>
+
+      {/* Trial status */}
+      {isTrialing && trialEndsAt && (() => {
+        const daysLeft = Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+        const urgent = daysLeft <= 7;
+        return (
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); onNavigate("billing"); if (onMobileClose) onMobileClose(); }}
+            style={{
+              display: "block",
+              padding: "10px 20px",
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+              background: urgent ? "rgba(239,68,68,0.12)" : "rgba(45,106,106,0.12)",
+              textDecoration: "none",
+              transition: "background 0.15s",
+            }}
+          >
+            <div style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: urgent ? "#f87171" : "#a3c9c9",
+              marginBottom: 2,
+            }}>
+              Pro Trial — {daysLeft === 0 ? "Ends today" : daysLeft === 1 ? "1 day left" : `${daysLeft} days left`}
+            </div>
+            <div style={{ fontSize: 11, color: urgent ? "rgba(248,113,113,0.7)" : "rgba(163,201,201,0.6)" }}>
+              Upgrade to keep Pro features →
+            </div>
+          </a>
+        );
+      })()}
 
       {/* Footer */}
       <div

@@ -55,8 +55,9 @@ export default function DashboardStats({ orgId }: Props) {
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
+            className="admin-stat-card"
             style={{
-              background: "#fff",
+              background: "var(--admin-card, #fff)",
               borderRadius: 14,
               padding: 18,
               height: 90,
@@ -117,8 +118,9 @@ export default function DashboardStats({ orgId }: Props) {
       {cards.map((s, i) => (
         <div
           key={i}
+          className="admin-stat-card"
           style={{
-            background: "#fff",
+            background: "var(--admin-card, #fff)",
             borderRadius: 14,
             padding: 18,
             boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
@@ -131,7 +133,7 @@ export default function DashboardStats({ orgId }: Props) {
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
-              color: theme.muted,
+              color: "var(--admin-text-muted, " + theme.muted + ")",
             }}
           >
             {s.label}
@@ -140,7 +142,7 @@ export default function DashboardStats({ orgId }: Props) {
             style={{
               fontFamily: s.small ? fontStack : displayFont,
               fontSize: s.small ? 20 : 30,
-              color: theme.ink,
+              color: "var(--admin-text)",
               marginTop: 2,
               fontWeight: s.small ? 700 : 400,
             }}

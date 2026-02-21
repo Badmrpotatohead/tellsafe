@@ -122,6 +122,7 @@ export async function updateOrganization(
       | "webhookEnabled"
       | "digestEnabled"
       | "digestDay"
+      | "hidePoweredBy"
     >
   >
 ) {
@@ -143,9 +144,28 @@ export async function getMyOrganizations(): Promise<Organization[]> {
     query(collections.organizations(), where("ownerId", "==", user.uid))
   );
 
-  return orgsSnap.docs.map(
+  const orgs = orgsSnap.docs.map(
     (doc) => ({ id: doc.id, ...doc.data() } as Organization)
   );
+
+  // Auto-downgrade expired trials
+  for (const org of orgs) {
+    if (org.isTrialing && org.trialEndsAt && new Date(org.trialEndsAt) < new Date()) {
+      try {
+        await updateDoc(collections.organization(org.id), {
+          plan: "free",
+          isTrialing: false,
+          updatedAt: new Date().toISOString(),
+        });
+        org.plan = "free";
+        org.isTrialing = false;
+      } catch (err) {
+        console.warn("[getMyOrganizations] Failed to downgrade expired trial:", err);
+      }
+    }
+  }
+
+  return orgs;
 }
 
 // ============================================================
@@ -229,6 +249,18 @@ export async function updateFeedbackStatus(
 ) {
   await updateDoc(collections.feedbackDoc(orgId, feedbackId), {
     status,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/** Update feedback categories (admin re-categorization) */
+export async function updateFeedbackCategories(
+  orgId: string,
+  feedbackId: string,
+  categories: string[]
+) {
+  await updateDoc(collections.feedbackDoc(orgId, feedbackId), {
+    categories,
     updatedAt: new Date().toISOString(),
   });
 }
@@ -426,6 +458,19 @@ export async function getOrgAdmins(orgId: string): Promise<OrgAdmin[]> {
   );
 }
 
+/** Update notification preferences for the current admin */
+export async function updateAdminNotificationPrefs(
+  orgId: string,
+  adminUid: string,
+  prefs: {
+    emailOnNewFeedback?: boolean;
+    emailOnUrgent?: boolean;
+    emailOnSurveyResponse?: boolean;
+  }
+) {
+  await updateDoc(collections.admin(orgId, adminUid), prefs);
+}
+
 // ============================================================
 // Analytics Helpers
 // ============================================================
@@ -437,7 +482,7 @@ export async function getFeedbackStats(orgId: string) {
 
   const total = items.length;
   const needsReply = items.filter(
-    (f) => f.status === "needs_reply" || f.status === "new"
+    (f) => f.status === "needs_reply" || f.status === "new" || f.status === "reopened"
   ).length;
   const urgent = items.filter((f) => f.sentimentLabel === "urgent").length;
 
