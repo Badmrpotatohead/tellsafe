@@ -57,7 +57,9 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
   const [title, setTitle] = useState(editSurvey?.title || "");
   const [description, setDescription] = useState(editSurvey?.description || "");
   const [questions, setQuestions] = useState<SurveyQuestion[]>(editSurvey?.questions || []);
-  const [allowIdentified, setAllowIdentified] = useState(editSurvey?.allowIdentified ?? false);
+  const [responseType, setResponseType] = useState<"identified" | "anonymous" | "relay">(
+    editSurvey?.responseType ?? "anonymous"
+  );
   const [closesAt, setClosesAt] = useState(editSurvey?.closesAt?.split("T")[0] || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +166,7 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
         title: title.trim(),
         description: description.trim(),
         questions,
-        allowIdentified,
+        responseType,
         closesAt: closesAt ? new Date(closesAt + "T23:59:59").toISOString() : null,
         opensAt: null,
         templateId,
@@ -527,11 +529,40 @@ export default function SurveyBuilder({ orgId, onSaved, onCancel, editSurvey }: 
         <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           Settings
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-            <input type="checkbox" checked={allowIdentified} onChange={(e) => setAllowIdentified(e.target.checked)} />
-            Allow respondents to optionally identify themselves
-          </label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Response type selector */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: theme.muted, marginBottom: 8 }}>Response Type</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {([
+                { value: "identified", icon: "👋", label: "Identified", desc: "Name & email required" },
+                { value: "anonymous", icon: "🎭", label: "Anonymous", desc: "No personal info collected" },
+                { value: "relay", icon: "🔒", label: "Relay", desc: "Encrypted — admin can reply" },
+              ] as const).map((opt) => {
+                const active = responseType === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setResponseType(opt.value)}
+                    style={{
+                      flex: 1,
+                      padding: "10px 8px",
+                      borderRadius: 10,
+                      border: `2px solid ${active ? theme.primary : theme.divider}`,
+                      background: active ? `${theme.primary}10` : theme.paper,
+                      cursor: "pointer",
+                      textAlign: "center",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <div style={{ fontSize: 18, marginBottom: 2 }}>{opt.icon}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: active ? theme.primary : theme.ink }}>{opt.label}</div>
+                    <div style={{ fontSize: 10, color: theme.muted, lineHeight: 1.3, marginTop: 2 }}>{opt.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <label style={{ fontSize: 13, whiteSpace: "nowrap" }}>Auto-close on:</label>
             <input

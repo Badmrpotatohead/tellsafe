@@ -25,7 +25,8 @@ export default function SurveyPage({ params }: PageProps) {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [followUps, setFollowUps] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [identifiedEmail, setIdentifiedEmail] = useState("");
+  const [relayEmail, setRelayEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,13 +107,29 @@ export default function SurveyPage({ params }: PageProps) {
   };
 
   const handleSubmit = async () => {
-    // Validate required
+    const responseType = survey.responseType ?? "anonymous";
+
+    // Validate required questions
     const missing = survey.questions.filter(
       (q: SurveyQuestion) => q.required && !answers[q.id] && answers[q.id] !== false
     );
     if (missing.length > 0) {
       setError(`Please answer all required questions (${missing.length} remaining)`);
       return;
+    }
+
+    // Validate type-specific fields
+    if (responseType === "identified") {
+      if (!name.trim() || !identifiedEmail.trim()) {
+        setError("Please enter your name and email to submit.");
+        return;
+      }
+    }
+    if (responseType === "relay") {
+      if (!relayEmail.trim()) {
+        setError("Please enter your email so we can reply to you.");
+        return;
+      }
     }
 
     setError(null);
@@ -133,8 +150,9 @@ export default function SurveyPage({ params }: PageProps) {
         body: JSON.stringify({
           orgId,
           answers: responseAnswers,
-          respondentName: name || null,
-          respondentEmail: email || null,
+          respondentName: responseType === "identified" ? name.trim() : null,
+          respondentEmail: responseType === "identified" ? identifiedEmail.trim() : null,
+          relayEmail: responseType === "relay" ? relayEmail.trim() : null,
         }),
       });
 
@@ -463,16 +481,49 @@ export default function SurveyPage({ params }: PageProps) {
           </div>
         ))}
 
-        {/* Optional identification */}
-        {survey.allowIdentified && (
-          <div style={{ background: "#fff", borderRadius: 16, padding: 24, marginBottom: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "#8a8578" }}>
-              Optional: Identify yourself
+        {/* Respondent info — varies by responseType */}
+        {survey.responseType === "identified" && (
+          <div style={{ background: "#fff", borderRadius: 16, padding: 24, marginBottom: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: `1.5px solid ${primaryColor}30` }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#1a1a2e" }}>👋 Your details</div>
+            <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 12 }}>Your name and email will be visible to organizers.</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name *"
+                required
+                style={{ flex: 1, minWidth: 140, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }}
+              />
+              <input
+                value={identifiedEmail}
+                onChange={(e) => setIdentifiedEmail(e.target.value)}
+                placeholder="Your email *"
+                type="email"
+                required
+                style={{ flex: 1, minWidth: 140, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }}
+              />
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" style={{ flex: 1, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }} />
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email" style={{ flex: 1, padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none" }} />
-            </div>
+          </div>
+        )}
+
+        {survey.responseType === "relay" && (
+          <div style={{ background: "#fff", borderRadius: 16, padding: 24, marginBottom: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: "1.5px solid #7c3aed30" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#1a1a2e" }}>🔒 Relay — stay anonymous</div>
+            <div style={{ fontSize: 12, color: "#8a8578", marginBottom: 12 }}>Your email is encrypted. Organizers can reply without knowing who you are.</div>
+            <input
+              value={relayEmail}
+              onChange={(e) => setRelayEmail(e.target.value)}
+              placeholder="Your email (encrypted) *"
+              type="email"
+              required
+              style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e8e5de", borderRadius: 10, fontSize: 14, fontFamily: fontStack, outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+        )}
+
+        {survey.responseType === "anonymous" && (
+          <div style={{ background: "#f8f6f1", borderRadius: 12, padding: "10px 16px", marginBottom: 14, fontSize: 12, color: "#8a8578", display: "flex", alignItems: "center", gap: 8 }}>
+            🎭 <span>Your response is completely anonymous — no personal info collected.</span>
           </div>
         )}
 

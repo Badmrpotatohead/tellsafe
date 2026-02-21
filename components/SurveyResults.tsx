@@ -144,6 +144,38 @@ export default function SurveyResults({ orgId, survey, onBack }: Props) {
           ))}
         </div>
       )}
+
+      {/* Respondents list — only shown for identified surveys */}
+      {responses.length > 0 && survey.responseType === "identified" && (
+        <div style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            👋 Respondents ({responses.filter((r: any) => r.respondentName || r.respondentEmail).length} identified)
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {responses.map((r: any, i) => (
+              r.respondentName || r.respondentEmail ? (
+                <div key={r.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: theme.paperWarm, borderRadius: 8, fontSize: 13 }}>
+                  <span style={{ fontWeight: 600, color: theme.ink }}>{r.respondentName || "—"}</span>
+                  {r.respondentEmail && <span style={{ color: theme.muted }}>{r.respondentEmail}</span>}
+                  <span style={{ marginLeft: "auto", fontSize: 11, color: theme.muted }}>{new Date(r.submittedAt).toLocaleDateString()}</span>
+                </div>
+              ) : null
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Relay responses — show count + note, no emails */}
+      {responses.length > 0 && survey.responseType === "relay" && (
+        <div style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            🔒 Relay Responses
+          </div>
+          <p style={{ fontSize: 13, color: theme.muted, margin: 0 }}>
+            {responses.length} encrypted response{responses.length !== 1 ? "s" : ""}. Emails are not visible here — reply to respondents via the <strong>Inbox</strong> tab.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -48,6 +48,10 @@ export type SurveyQuestion =
 // --- Survey ---
 export type SurveyStatus = "draft" | "active" | "closed" | "archived";
 
+// How respondents submit: identified (name+email required), anonymous (no info),
+// or relay (email encrypted so admins can reply without knowing who they are)
+export type SurveyResponseType = "identified" | "anonymous" | "relay";
+
 export interface Survey {
   id: string;
   orgId: string;
@@ -56,8 +60,8 @@ export interface Survey {
   questions: SurveyQuestion[];
   status: SurveyStatus;
   responseCount: number;
-  // Privacy
-  allowIdentified: boolean; // let respondents optionally identify
+  // Privacy — replaces old allowIdentified boolean
+  responseType: SurveyResponseType;
   // Scheduling
   opensAt: string | null; // ISO date, null = immediately
   closesAt: string | null; // ISO date, null = manual close
@@ -80,9 +84,13 @@ export interface SurveyResponse {
   surveyId: string;
   orgId: string;
   answers: SurveyResponseAnswer[];
-  // Optional identification
+  responseType: SurveyResponseType;
+  // Identified: name + email stored plaintext
   respondentName: string | null;
   respondentEmail: string | null;
+  // Relay: email encrypted, threadId for replies
+  encryptedEmail: string | null;
+  threadId: string | null;
   // Metadata
   submittedAt: string;
 }
