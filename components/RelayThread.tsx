@@ -8,10 +8,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { useBrand } from "./BrandProvider";
 import {
   subscribeThreadMessages,
-  sendAdminReply,
   getTemplates,
   trackTemplateUsage,
 } from "../lib/data";
+import { auth } from "../lib/firebase";
 import { useAuth } from "./AuthProvider";
 import type { ThreadMessage, ResponseTemplate } from "../types";
 import { PLAN_LIMITS } from "../types";
@@ -58,12 +58,24 @@ export default function RelayThread({ orgId, threadId, feedbackId, onBack }: Pro
     if (!replyText.trim() || sending) return;
     setSending(true);
     try {
-      await sendAdminReply(
-        orgId,
-        threadId,
-        replyText.trim(),
-        user?.displayName || "Organizer"
-      );
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/relay/reply", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          orgId,
+          threadId,
+          text: replyText.trim(),
+          authorName: user?.displayName || "Organizer",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to send reply");
+      }
       setReplyText("");
     } catch (err) {
       console.error("Failed to send reply:", err);
