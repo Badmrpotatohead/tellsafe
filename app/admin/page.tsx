@@ -817,6 +817,10 @@ function AdminPageInner() {
             orgId={orgId}
             survey={viewingSurveyResults}
             onBack={() => { setViewingSurveyResults(null); setView("surveys"); }}
+            onOpenThread={(tid, fid) => {
+              setViewingSurveyResults(null);
+              openThread(tid, fid);
+            }}
           />
         ) : null;
 

@@ -9,6 +9,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useBrand } from "./BrandProvider";
+import { auth } from "../lib/firebase";
 import type { Survey, SurveyQuestion, SurveyResponse, SurveyResponseAnswer } from "../types/survey";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
@@ -18,6 +19,7 @@ interface Props {
   orgId: string;
   survey: Survey;
   onBack: () => void;
+  onOpenThread?: (threadId: string, feedbackId: string) => void;
 }
 
 // ── Privacy badge ──────────────────────────────────────────────
@@ -42,11 +44,177 @@ function PrivacyBadge({ responseType }: { responseType: string }) {
   );
 }
 
+// ── Identified email compose modal ────────────────────────────
+function EmailRespondentModal({
+  orgId,
+  surveyId,
+  response,
+  surveyTitle,
+  onClose,
+}: {
+  orgId: string;
+  surveyId: string;
+  response: SurveyResponse;
+  surveyTitle: string;
+  onClose: () => void;
+}) {
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSend = async () => {
+    if (!message.trim()) return;
+    setSending(true);
+    setError(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/survey/reply-identified", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          orgId,
+          surveyId,
+          responseId: response.id,
+          message: message.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to send email");
+      }
+      setSent(true);
+    } catch (err: any) {
+      setError(err.message || "Failed to send. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 16,
+        animation: "tsModalFadeIn 0.15s ease",
+      }}
+    >
+      <style>{`
+        @keyframes tsModalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes tsModalSlideUp { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      `}</style>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 20, padding: "32px 28px",
+          maxWidth: 480, width: "100%",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+          fontFamily: fontStack,
+          animation: "tsModalSlideUp 0.18s ease",
+        }}
+      >
+        {sent ? (
+          <div style={{ textAlign: "center", padding: "16px 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>✉️</div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 8px", color: "#1a1a2e" }}>
+              Email sent!
+            </h2>
+            <p style={{ fontSize: 14, color: "#5a5650", margin: "0 0 24px" }}>
+              Your message was sent to{" "}
+              <strong>{response.respondentName || response.respondentEmail}</strong>.
+            </p>
+            <button
+              onClick={onClose}
+              style={{
+                padding: "11px 28px", border: "none", borderRadius: 10,
+                background: "#2d6a6a", color: "#fff",
+                fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: fontStack,
+              }}
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: "#1a1a2e" }}>
+              ✉️ Email Respondent
+            </h2>
+            <p style={{ fontSize: 13, color: "#5a5650", margin: "0 0 20px" }}>
+              To: <strong>{response.respondentName || "—"}</strong>
+              {response.respondentEmail && (
+                <span style={{ color: "#8a8578", marginLeft: 6 }}>({response.respondentEmail})</span>
+              )}
+            </p>
+            <p style={{ fontSize: 12, color: "#8a8578", margin: "0 0 8px" }}>
+              Subject: <em>Re: {surveyTitle}</em>
+            </p>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Write your message to this respondent..."
+              rows={6}
+              style={{
+                width: "100%", padding: "12px 14px",
+                border: "1.5px solid #e8e5de", borderRadius: 10,
+                fontSize: 14, color: "#1a1a2e", fontFamily: fontStack,
+                resize: "vertical", outline: "none", boxSizing: "border-box",
+                lineHeight: 1.5,
+              }}
+            />
+            {error && (
+              <p style={{ fontSize: 13, color: "#dc2626", margin: "8px 0 0" }}>{error}</p>
+            )}
+            <p style={{ fontSize: 11, color: "#8a8578", margin: "10px 0 20px", lineHeight: 1.5 }}>
+              The respondent will receive this email directly. They can reply to your admin email.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={onClose}
+                style={{
+                  flex: 1, padding: "12px 0",
+                  border: "1.5px solid #e8e5de", borderRadius: 10,
+                  background: "#fff", color: "#1a1a2e",
+                  fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: fontStack,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSend}
+                disabled={sending || !message.trim()}
+                style={{
+                  flex: 2, padding: "12px 0",
+                  border: "none", borderRadius: 10,
+                  background: sending || !message.trim() ? "#e8e5de" : "#2d6a6a",
+                  color: sending || !message.trim() ? "#8a8578" : "#fff",
+                  fontSize: 14, fontWeight: 700,
+                  cursor: sending || !message.trim() ? "not-allowed" : "pointer",
+                  fontFamily: fontStack,
+                  transition: "background 0.15s",
+                }}
+              >
+                {sending ? "Sending..." : "Send Email →"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────
-export default function SurveyResults({ orgId, survey, onBack }: Props) {
+export default function SurveyResults({ orgId, survey, onBack, onOpenThread }: Props) {
   const { theme } = useBrand();
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [emailModalResponse, setEmailModalResponse] = useState<SurveyResponse | null>(null);
 
   useEffect(() => {
     fetchResponses();
@@ -119,6 +287,17 @@ export default function SurveyResults({ orgId, survey, onBack }: Props) {
 
   return (
     <div style={{ padding: 28, fontFamily: fontStack, maxWidth: 800 }}>
+      {/* Email compose modal */}
+      {emailModalResponse && (
+        <EmailRespondentModal
+          orgId={orgId}
+          surveyId={survey.id}
+          response={emailModalResponse}
+          surveyTitle={survey.title}
+          onClose={() => setEmailModalResponse(null)}
+        />
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <button
@@ -198,32 +377,106 @@ export default function SurveyResults({ orgId, survey, onBack }: Props) {
             ))}
           </div>
 
-          {/* ── Identified respondents list ── */}
+          {/* ── Identified respondents — with email button ── */}
           {identifiedResponses.length > 0 && (
             <div style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginTop: 18 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 👋 Identified Respondents ({identifiedResponses.length})
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {identifiedResponses.map((r, i) => (
-                  <div key={r.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: theme.paperWarm, borderRadius: 8, fontSize: 13 }}>
+                  <div
+                    key={r.id || i}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 14px", background: theme.paperWarm, borderRadius: 10,
+                      fontSize: 13, flexWrap: "wrap",
+                    }}
+                  >
                     <span style={{ fontWeight: 600, color: theme.ink }}>{r.respondentName || "—"}</span>
-                    {r.respondentEmail && <span style={{ color: theme.muted }}>{r.respondentEmail}</span>}
-                    <span style={{ marginLeft: "auto", fontSize: 11, color: theme.muted }}>{new Date(r.submittedAt).toLocaleDateString()}</span>
+                    {r.respondentEmail && (
+                      <span style={{ color: theme.muted, fontSize: 12 }}>{r.respondentEmail}</span>
+                    )}
+                    <span style={{ marginLeft: "auto", fontSize: 11, color: theme.muted }}>
+                      {new Date(r.submittedAt).toLocaleDateString()}
+                    </span>
+                    <button
+                      onClick={() => setEmailModalResponse(r)}
+                      style={{
+                        padding: "5px 12px",
+                        border: "1.5px solid #2d6a6a",
+                        borderRadius: 8,
+                        background: "transparent",
+                        color: "#2d6a6a",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: fontStack,
+                        flexShrink: 0,
+                      }}
+                    >
+                      ✉️ Email
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* ── Relay responses note — never show emails ── */}
+          {/* ── Relay responses — with reply thread buttons ── */}
           {relayResponses.length > 0 && (
             <div style={{ background: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginTop: 18 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 🔒 Relay Responses ({relayResponses.length})
               </div>
-              <p style={{ fontSize: 13, color: theme.muted, margin: 0 }}>
-                {relayResponses.length} encrypted response{relayResponses.length !== 1 ? "s" : ""}. Respondent emails are encrypted and never visible here — reply anonymously via the <strong>Inbox</strong> tab.
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {relayResponses.map((r, i) => (
+                  <div
+                    key={r.id || i}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 14px", background: "#faf5ff", borderRadius: 10,
+                      border: "1px solid #e9d5ff",
+                      fontSize: 13, flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🔒</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, color: "#7c3aed", fontSize: 13 }}>
+                        Anonymous relay respondent
+                      </div>
+                      <div style={{ fontSize: 11, color: "#8a8578", marginTop: 2 }}>
+                        {new Date(r.submittedAt).toLocaleDateString()} · Identity encrypted
+                      </div>
+                    </div>
+                    {r.threadId && onOpenThread ? (
+                      <button
+                        onClick={() => onOpenThread(r.threadId!, r.id)}
+                        style={{
+                          padding: "6px 14px",
+                          border: "none",
+                          borderRadius: 8,
+                          background: "#7c3aed",
+                          color: "#fff",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          fontFamily: fontStack,
+                          flexShrink: 0,
+                        }}
+                      >
+                        💬 Reply via Relay
+                      </button>
+                    ) : !r.threadId ? (
+                      <span style={{ fontSize: 11, color: "#8a8578", fontStyle: "italic" }}>
+                        No thread
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 12, color: theme.muted, margin: "12px 0 0", lineHeight: 1.5 }}>
+                🔒 Respondent emails are encrypted — their identity stays protected throughout the relay conversation.
               </p>
             </div>
           )}
