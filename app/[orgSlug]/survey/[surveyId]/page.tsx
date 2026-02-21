@@ -115,7 +115,7 @@ export default function SurveyPage({ params }: PageProps) {
     const allowedTypes: string[] = (survey.allowedResponseTypes?.length
       ? survey.allowedResponseTypes
       : [survey.responseType ?? "anonymous"]
-    ).slice().sort((a, b) => TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b));
+    ).slice().sort((a: string, b: string) => TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b));
     const responseType = allowedTypes.length > 1
       ? (chosenResponseType ?? allowedTypes[0])
       : allowedTypes[0];
@@ -531,7 +531,7 @@ export default function SurveyPage({ params }: PageProps) {
           const allowedTypes: string[] = (survey.allowedResponseTypes?.length
             ? survey.allowedResponseTypes
             : [survey.responseType ?? "anonymous"]
-          ).slice().sort((a, b) => TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b));
+          ).slice().sort((a: string, b: string) => TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b));
           const isMulti = allowedTypes.length > 1;
           const activeType = isMulti ? chosenResponseType : allowedTypes[0];
 
