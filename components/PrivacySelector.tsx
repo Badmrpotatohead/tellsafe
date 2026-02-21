@@ -65,9 +65,10 @@ interface Props {
   onChange: (type: FeedbackType) => void;
   relayEnabled: boolean; // false on free plan
   translations?: PrivacyTranslations;
+  showLabel?: boolean; // hide when a hero h1 already provides context
 }
 
-export default function PrivacySelector({ value, onChange, relayEnabled, translations }: Props) {
+export default function PrivacySelector({ value, onChange, relayEnabled, translations, showLabel = true }: Props) {
   const { theme } = useBrand();
   const config = getPrivacyConfig(theme);
   const current = config[value];
@@ -78,20 +79,22 @@ export default function PrivacySelector({ value, onChange, relayEnabled, transla
 
   return (
     <div>
-      <label
-        style={{
-          display: "block",
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
-          color: theme.muted,
-          marginBottom: 10,
-          fontFamily: "'Outfit', system-ui, sans-serif",
-        }}
-      >
-        {translations?.howWouldYouLikeToShare || "How would you like to share?"}
-      </label>
+      {showLabel && (
+        <label
+          style={{
+            display: "block",
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            color: theme.muted,
+            marginBottom: 10,
+            fontFamily: "'Outfit', system-ui, sans-serif",
+          }}
+        >
+          {translations?.howWouldYouLikeToShare || "How would you like to share?"}
+        </label>
+      )}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
         {types.map((type) => {

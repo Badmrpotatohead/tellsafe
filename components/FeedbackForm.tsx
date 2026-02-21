@@ -451,6 +451,7 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
             value={privacy}
             onChange={setPrivacy}
             relayEnabled={relayEnabled}
+            showLabel={org.plan === "free"}
             translations={lang !== "en" ? {
               howWouldYouLikeToShare: t.whatsThisAbout,
               identified: t.identified,
