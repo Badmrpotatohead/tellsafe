@@ -51,7 +51,10 @@ export default function BrandingSettings({ orgId }: Props) {
   const [saved, setSaved] = useState(false);
   const [newCatEmoji, setNewCatEmoji] = useState("");
   const [newCatLabel, setNewCatLabel] = useState("");
+  const [newCatIconUrl, setNewCatIconUrl] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [catIconUploading, setCatIconUploading] = useState(false);
+  const catIconRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   const inputStyle = {
@@ -116,12 +119,40 @@ export default function BrandingSettings({ orgId }: Props) {
     setUploadError(null);
   };
 
+  const handleCatIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      setUploadError(`Icon must be under ${MAX_LOGO_SIZE_MB}MB`);
+      return;
+    }
+    setCatIconUploading(true);
+    try {
+      const storageRef = ref(storage, `orgs/${orgId}/cat-icons/${Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setNewCatIconUrl(url);
+      setNewCatEmoji("");
+      setShowEmojiPicker(false);
+    } catch {
+      setUploadError("Icon upload failed. Try again.");
+    } finally {
+      setCatIconUploading(false);
+      if (catIconRef.current) catIconRef.current.value = "";
+    }
+  };
+
   const addCategory = () => {
     if (!newCatLabel.trim()) return;
     if (categories.length >= 10) return;
-    setCategories((prev) => [...prev, { emoji: newCatEmoji || "📌", label: newCatLabel.trim() }]);
+    setCategories((prev) => [...prev, {
+      emoji: newCatIconUrl ? "" : (newCatEmoji || "📌"),
+      label: newCatLabel.trim(),
+      iconUrl: newCatIconUrl || null,
+    }]);
     setNewCatEmoji("");
     setNewCatLabel("");
+    setNewCatIconUrl(null);
     setShowEmojiPicker(false);
   };
 
@@ -520,7 +551,11 @@ export default function BrandingSettings({ orgId }: Props) {
                 border: `1px solid ${theme.divider}`,
               }}
             >
-              <span style={{ fontSize: 16 }}>{c.emoji}</span>
+              {c.iconUrl ? (
+                <img src={c.iconUrl} alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: "cover" }} />
+              ) : (
+                <span style={{ fontSize: 16 }}>{c.emoji}</span>
+              )}
               <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{c.label}</span>
               <button
                 onClick={() => removeCategory(i)}
@@ -560,10 +595,14 @@ export default function BrandingSettings({ orgId }: Props) {
             }}
             title="Pick an icon"
           >
-            {newCatEmoji || "😀"}
+            {newCatIconUrl ? (
+              <img src={newCatIconUrl} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: "cover" }} />
+            ) : (
+              newCatEmoji || "😀"
+            )}
           </button>
 
-          {/* Emoji picker dropdown */}
+          {/* Emoji / icon picker dropdown */}
           {showEmojiPicker && (
             <div style={{
               position: "absolute",
@@ -575,7 +614,9 @@ export default function BrandingSettings({ orgId }: Props) {
               border: `1.5px solid ${theme.divider}`,
               boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
               padding: 12,
-              width: 260,
+              width: 248,
+              maxWidth: "calc(100vw - 48px)",
+              boxSizing: "border-box" as const,
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: theme.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Pick an icon
@@ -586,14 +627,15 @@ export default function BrandingSettings({ orgId }: Props) {
                     key={emoji}
                     onClick={() => {
                       setNewCatEmoji(emoji);
+                      setNewCatIconUrl(null);
                       setShowEmojiPicker(false);
                     }}
                     style={{
                       width: 28,
                       height: 28,
-                      border: newCatEmoji === emoji ? `2px solid ${theme.primary}` : "1px solid transparent",
+                      border: newCatEmoji === emoji && !newCatIconUrl ? `2px solid ${theme.primary}` : "1px solid transparent",
                       borderRadius: 6,
-                      background: newCatEmoji === emoji ? `${theme.primary}15` : "transparent",
+                      background: newCatEmoji === emoji && !newCatIconUrl ? `${theme.primary}15` : "transparent",
                       fontSize: 16,
                       cursor: "pointer",
                       display: "flex",
@@ -609,12 +651,45 @@ export default function BrandingSettings({ orgId }: Props) {
               <div style={{ marginTop: 8, borderTop: `1px solid ${theme.divider}`, paddingTop: 8 }}>
                 <input
                   value={newCatEmoji}
-                  onChange={(e) => setNewCatEmoji(e.target.value)}
+                  onChange={(e) => { setNewCatEmoji(e.target.value); setNewCatIconUrl(null); }}
                   placeholder="Or type any emoji..."
                   maxLength={2}
                   style={{ ...inputStyle, fontSize: 12, padding: "6px 10px" }}
                 />
               </div>
+              {/* Upload custom icon — Community+ */}
+              {!brandingLocked && (
+                <div style={{ marginTop: 8, borderTop: `1px solid ${theme.divider}`, paddingTop: 8 }}>
+                  <input
+                    ref={catIconRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={handleCatIconUpload}
+                  />
+                  {newCatIconUrl ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <img src={newCatIconUrl} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover", border: `2px solid ${theme.primary}` }} />
+                      <span style={{ fontSize: 11, color: theme.primary, fontWeight: 600, flex: 1 }}>Custom icon set</span>
+                      <button onClick={() => setNewCatIconUrl(null)} style={{ background: "none", border: "none", fontSize: 12, color: theme.muted, cursor: "pointer" }}>✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => catIconRef.current?.click()}
+                      disabled={catIconUploading}
+                      style={{
+                        width: "100%", padding: "6px 10px", borderRadius: 8,
+                        border: `1.5px dashed ${theme.divider}`,
+                        background: "transparent", cursor: "pointer",
+                        fontSize: 11, fontWeight: 600, color: theme.muted,
+                        fontFamily: fontStack,
+                      }}
+                    >
+                      {catIconUploading ? "Uploading..." : "⬆ Upload custom icon"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

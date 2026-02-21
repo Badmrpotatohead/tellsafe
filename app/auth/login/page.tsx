@@ -4,8 +4,8 @@
 
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../components/AuthProvider";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
@@ -13,10 +13,17 @@ const displayFont = "'Fraunces', Georgia, serif";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, error } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Pre-fill email from query param (e.g. redirected from signup "already exists" error)
+  useEffect(() => {
+    const pre = searchParams.get("email");
+    if (pre) setEmail(pre);
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +103,13 @@ export default function LoginPage() {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 5 }}>Password</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
+              <label style={{ fontSize: 13, fontWeight: 600 }}>Password</label>
+              <a href={`/auth/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
+                style={{ fontSize: 12, color: "#2d6a6a", fontWeight: 600, textDecoration: "none" }}>
+                Forgot password?
+              </a>
+            </div>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••" required style={inputStyle} />
           </div>

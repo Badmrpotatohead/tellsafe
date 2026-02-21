@@ -65,6 +65,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
 export interface Category {
   emoji: string;
   label: string;
+  iconUrl?: string | null; // Optional custom uploaded icon (Community+); overrides emoji when set
 }
 
 export interface Organization {

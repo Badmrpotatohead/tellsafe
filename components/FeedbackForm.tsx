@@ -505,7 +505,11 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
                     fontFamily: fontStack,
                   }}
                 >
-                  {c.emoji} {c.label}
+                  {c.iconUrl ? (
+                    <img src={c.iconUrl} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: "cover", verticalAlign: "middle" }} />
+                  ) : (
+                    c.emoji
+                  )}{" "}{c.label}
                 </button>
               );
             })}

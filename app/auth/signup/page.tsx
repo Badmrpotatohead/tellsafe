@@ -42,7 +42,15 @@ export default function SignupPage() {
       await signup(email, password, displayName);
       setStep("org");
     } catch (err: any) {
-      setError(err.message);
+      // Firebase error codes for existing account
+      if (
+        err.code === "auth/email-already-in-use" ||
+        (err.message && err.message.toLowerCase().includes("already"))
+      ) {
+        setError("email-exists");
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -172,17 +180,55 @@ export default function SignupPage() {
                   Password
                 </label>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters" required minLength={6} style={inputStyle} />
+                  placeholder="At least 8 characters" required minLength={8} style={inputStyle} />
+                <div style={{ fontSize: 11, color: "#8a8578", marginTop: 4 }}>
+                  Must be 8+ characters with uppercase, lowercase, and a number.
+                </div>
               </div>
 
-              {(error || authError) && (
+              {error === "email-exists" ? (
+                <div style={{
+                  padding: "12px 14px", borderRadius: 10, marginBottom: 16, fontSize: 13,
+                  background: "rgba(45, 106, 106, 0.08)", border: "1.5px solid rgba(45,106,106,0.2)",
+                }}>
+                  <div style={{ fontWeight: 700, color: "#1a1a2e", marginBottom: 4 }}>
+                    That email already has an account.
+                  </div>
+                  <div style={{ color: "#8a8578", marginBottom: 10 }}>
+                    Sign in with your existing account, or reset your password if you&apos;ve forgotten it.
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                    <a
+                      href={`/auth/login?email=${encodeURIComponent(email)}`}
+                      style={{
+                        display: "inline-block", padding: "7px 18px",
+                        background: "#2d6a6a", color: "#fff", borderRadius: 8,
+                        fontSize: 13, fontWeight: 700, textDecoration: "none",
+                      }}
+                    >
+                      Sign in →
+                    </a>
+                    <a
+                      href={`/auth/forgot-password?email=${encodeURIComponent(email)}`}
+                      style={{
+                        display: "inline-block", padding: "7px 18px",
+                        border: "1.5px solid #2d6a6a", color: "#2d6a6a", borderRadius: 8,
+                        fontSize: 13, fontWeight: 700, textDecoration: "none",
+                        background: "transparent",
+                      }}
+                    >
+                      Forgot password?
+                    </a>
+                  </div>
+                </div>
+              ) : (error || authError) ? (
                 <div style={{
                   padding: "10px 14px", borderRadius: 10, marginBottom: 16, fontSize: 13,
                   background: "rgba(192, 93, 59, 0.08)", color: "#c05d3b",
                 }}>
                   {error || authError}
                 </div>
-              )}
+              ) : null}
 
               <button type="submit" disabled={loading}
                 style={{
