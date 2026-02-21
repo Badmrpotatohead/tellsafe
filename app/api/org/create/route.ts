@@ -19,6 +19,12 @@ function getNextMonthReset(): string {
   return next.toISOString();
 }
 
+function getTrialEnd(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return d.toISOString();
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Verify auth token
@@ -74,11 +80,12 @@ export async function POST(request: NextRequest) {
         { emoji: "🤝", label: "Safety" },
         { emoji: "💬", label: "Other" },
       ],
-      plan: "free",
+      plan: "pro",
+      isTrialing: true,
+      trialEndsAt: getTrialEnd(),
       billingInterval: null,
       stripeCustomerId: null,
       stripeSubscriptionId: null,
-      trialEndsAt: null,
       ownerId: decoded.uid,
       submissionCount: 0,
       submissionResetDate: getNextMonthReset(),

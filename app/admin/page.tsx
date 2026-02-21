@@ -25,12 +25,17 @@ import BillingSettings from "../../components/BillingSettings";
 import TeamAccess from "../../components/TeamAccess";
 import UpdatesManager from "../../components/UpdatesManager";
 import IntegrationsSettings from "../../components/IntegrationsSettings";
+import NotificationSettings from "../../components/NotificationSettings";
+import ProfileSettings from "../../components/ProfileSettings";
 import type { AdminView } from "../../components/AdminSidebar";
 import { PLAN_LIMITS } from "../../types";
 import { createOrganization } from "../../lib/data";
 import EmailVerificationBanner from "../../components/EmailVerificationBanner";
+import WelcomeModal from "../../components/WelcomeModal";
+import UpgradeModal from "../../components/UpgradeModal";
 import { auth } from "../../lib/firebase";
 import { useToast } from "../../components/Toast";
+import { AdminThemeProvider } from "../../components/AdminThemeProvider";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -103,17 +108,45 @@ const adminResponsiveCss = `
       font-size: 11px !important;
     }
   }
+
+  /* ====== DETAIL PANEL RESPONSIVE (≤ 1024px) ====== */
+  @media (max-width: 1024px) {
+    /* When detail panel is open, hide the list */
+    .admin-detail-open .admin-view-content {
+      display: none !important;
+    }
+
+    /* Make detail panel full-width */
+    .admin-feedback-detail {
+      width: 100% !important;
+      left: 0 !important;
+    }
+
+    /* Show back button on small screens */
+    .admin-detail-back {
+      display: flex !important;
+    }
+  }
+
+  /* Hide back button on large screens */
+  @media (min-width: 1025px) {
+    .admin-detail-back {
+      display: none !important;
+    }
+  }
 `;
 
 export default function AdminPage() {
   return (
-    <Suspense fallback={
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', system-ui, sans-serif", background: "#f2f0eb" }}>
-        <p style={{ color: "#8a8578", fontSize: 14 }}>Loading dashboard...</p>
-      </div>
-    }>
-      <AdminPageInner />
-    </Suspense>
+    <AdminThemeProvider>
+      <Suspense fallback={
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', system-ui, sans-serif", background: "#f2f0eb" }}>
+          <p style={{ color: "#8a8578", fontSize: 14 }}>Loading dashboard...</p>
+        </div>
+      }>
+        <AdminPageInner />
+      </Suspense>
+    </AdminThemeProvider>
   );
 }
 
@@ -121,6 +154,7 @@ function AdminPageInner() {
   const { user, org, allOrgs, loading, setOrg, refreshOrg, reloadUser } = useAuth();
   const { showToast, ToastContainer } = useToast();
   const [view, setView] = useState<AdminView>("inbox");
+  const [billingSource, setBillingSource] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadFeedbackId, setThreadFeedbackId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -128,6 +162,7 @@ function AdminPageInner() {
   const [editingSurvey, setEditingSurvey] = useState<any>(null);
   const [viewingSurveyResults, setViewingSurveyResults] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [formLinkCopied, setFormLinkCopied] = useState(false);
   const searchParams = useSearchParams();
   const billingParam = searchParams.get("billing") as "success" | "cancel" | null;
 
@@ -162,6 +197,12 @@ function AdminPageInner() {
     } finally {
       setNewOrgLoading(false);
     }
+  };
+
+  // Navigate to billing with feature source tracking
+  const goToBilling = (source?: string) => {
+    setBillingSource(source || null);
+    setView("billing");
   };
 
   // --- Email verification state ---
@@ -205,7 +246,7 @@ function AdminPageInner() {
           alignItems: "center",
           justifyContent: "center",
           fontFamily: fontStack,
-          background: "#f2f0eb",
+          background: "var(--admin-bg, #f2f0eb)",
         }}
       >
         <div style={{ textAlign: "center" }}>
@@ -221,7 +262,7 @@ function AdminPageInner() {
             }}
           />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <p style={{ color: "#8a8578", fontSize: 14 }}>Loading dashboard...</p>
+          <p style={{ color: "var(--admin-text-muted, #8a8578)", fontSize: 14 }}>Loading dashboard...</p>
         </div>
       </div>
     );
@@ -237,7 +278,7 @@ function AdminPageInner() {
           alignItems: "center",
           justifyContent: "center",
           fontFamily: fontStack,
-          background: "#f2f0eb",
+          background: "var(--admin-bg, #f2f0eb)",
         }}
       >
         <div style={{ textAlign: "center", maxWidth: 360 }}>
@@ -250,11 +291,12 @@ function AdminPageInner() {
               fontSize: 24,
               fontWeight: 600,
               marginBottom: 8,
+              color: "var(--admin-text, #1a1a2e)",
             }}
           >
             Sign in to TellSafe
           </h1>
-          <p style={{ color: "#8a8578", fontSize: 14, marginBottom: 24 }}>
+          <p style={{ color: "var(--admin-text-muted, #8a8578)", fontSize: 14, marginBottom: 24 }}>
             Access your admin dashboard to manage feedback.
           </p>
           <a
@@ -287,17 +329,17 @@ function AdminPageInner() {
           alignItems: "center",
           justifyContent: "center",
           fontFamily: fontStack,
-          background: "#f2f0eb",
+          background: "var(--admin-bg, #f2f0eb)",
         }}
       >
         <div style={{ textAlign: "center", maxWidth: 400 }}>
           <a href="/" style={{ textDecoration: "none", color: "inherit" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
           </a>
-          <h1 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8 }}>
+          <h1 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8, color: "var(--admin-text, #1a1a2e)" }}>
             Welcome to TellSafe!
           </h1>
-          <p style={{ color: "#8a8578", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
+          <p style={{ color: "var(--admin-text-muted, #8a8578)", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
             Let's set up your organization so your community can start sharing feedback.
           </p>
           <a
@@ -340,18 +382,18 @@ function AdminPageInner() {
           alignItems: "center",
           justifyContent: "center",
           fontFamily: fontStack,
-          background: "#f2f0eb",
+          background: "var(--admin-bg, #f2f0eb)",
           padding: 20,
         }}
       >
         <div
           style={{
-            background: "#fff",
+            background: "var(--admin-card, #fff)",
             borderRadius: 24,
             padding: "48px 40px",
             maxWidth: 460,
             width: "100%",
-            boxShadow: "0 8px 32px rgba(26,26,46,0.10)",
+            boxShadow: "var(--admin-shadow-lg, 0 8px 32px rgba(26,26,46,0.10))",
             textAlign: "center",
           }}
         >
@@ -482,6 +524,8 @@ function AdminPageInner() {
     : view === "surveys" ? "Surveys"
     : view === "survey_build" ? "Survey Builder"
     : view === "survey_results" ? "Results"
+    : view === "profile" ? "Account"
+    : view === "notifications" ? "Notifications"
     : view === "billing" ? "Billing"
     : "Dashboard";
 
@@ -569,7 +613,9 @@ function AdminPageInner() {
         />
         <style>{adminResponsiveCss}</style>
         <ToastContainer />
-        <div style={{ display: "flex", minHeight: "100vh" }}>
+        <WelcomeModal orgId={orgId} uid={user.uid} primaryColor={org.primaryColor} />
+        <UpgradeModal orgId={orgId} uid={user.uid} currentPlan={org.plan} primaryColor={org.primaryColor} />
+        <div style={{ display: "flex", minHeight: "100vh", background: "var(--admin-bg, #f2f0eb)" }}>
           <AdminSidebar
             orgId={orgId}
             activeView={view}
@@ -579,6 +625,8 @@ function AdminPageInner() {
             mobileOpen={sidebarOpen}
             onMobileClose={() => setSidebarOpen(false)}
             plan={org.plan}
+            isTrialing={org.isTrialing}
+            trialEndsAt={org.trialEndsAt}
             allOrgs={allOrgs}
             onOrgSwitch={(newOrg) => { setOrg(newOrg); setView("inbox"); }}
             onAddOrg={canAddOrg ? () => setNewOrgOpen(true) : undefined}
@@ -618,7 +666,7 @@ function AdminPageInner() {
               }}
             >
               <div>
-                <h1 className="admin-page-title" style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600 }}>
+                <h1 className="admin-page-title" style={{ fontFamily: displayFont, fontSize: 26, fontWeight: 600, color: "var(--admin-text, #1a1a2e)" }}>
                   {categoryFilter
                     ? categoryFilter
                     : view === "inbox"
@@ -648,6 +696,29 @@ function AdminPageInner() {
                 )}
               </div>
               <div className="admin-inbox-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  onClick={() => {
+                    const url = `${process.env.NEXT_PUBLIC_APP_URL || "https://tellsafe.app"}/${org.slug}`;
+                    navigator.clipboard.writeText(url);
+                    setFormLinkCopied(true);
+                    setTimeout(() => setFormLinkCopied(false), 2000);
+                  }}
+                  className="admin-action-btn"
+                  style={{
+                    padding: "7px 16px",
+                    border: "1.5px solid rgba(26,26,46,0.10)",
+                    borderRadius: 8,
+                    background: formLinkCopied ? "#059669" : "var(--admin-card, #fff)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    color: formLinkCopied ? "#fff" : "var(--admin-text, #1a1a2e)",
+                    fontFamily: fontStack,
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {formLinkCopied ? "✓ Link Copied!" : "🔗 Form Link"}
+                </button>
                 {PLAN_LIMITS[org.plan].hasCsvExport ? (
                   <button
                     onClick={handleExportCsv}
@@ -668,7 +739,7 @@ function AdminPageInner() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => setView("billing")}
+                    onClick={() => goToBilling("export")}
                     className="admin-action-btn"
                     style={{
                       padding: "7px 16px",
@@ -703,8 +774,10 @@ function AdminPageInner() {
             {!categoryFilter && <DashboardStats orgId={orgId} />}
             <FeedbackList
               orgId={orgId}
+              org={org}
               onOpenThread={openThread}
               onSelect={setSelectedFeedback}
+              onNavigate={(v) => { setCategoryFilter(null); setView(v as any); }}
               categoryFilter={categoryFilter}
               showArchived={view === "resolved"}
               viewFilter={view as "inbox" | "needs_reply" | "resolved" | "urgent"}
@@ -772,11 +845,11 @@ function AdminPageInner() {
               <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
                 Analytics Dashboard
               </h2>
-              <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+              <p style={{ color: "var(--admin-text-muted, #8a8578)", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
                 See submission trends, sentiment breakdowns, category distribution, and more. Available on the Pro plan.
               </p>
               <button
-                onClick={() => setView("billing")}
+                onClick={() => goToBilling("analytics")}
                 style={{
                   padding: "12px 28px", border: "none", borderRadius: 10,
                   background: "#2d6a6a", color: "#fff", fontSize: 14,
@@ -832,11 +905,11 @@ function AdminPageInner() {
               <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
                 Updates Board
               </h2>
-              <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+              <p style={{ color: "var(--admin-text-muted, #8a8578)", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
                 Share what changed based on feedback. Close the loop with your community and encourage more submissions. Available on the Pro plan.
               </p>
               <button
-                onClick={() => setView("billing")}
+                onClick={() => goToBilling("updates")}
                 style={{
                   padding: "12px 28px", border: "none", borderRadius: 10,
                   background: "#2d6a6a", color: "#fff", fontSize: 14,
@@ -862,11 +935,11 @@ function AdminPageInner() {
               <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
                 Integrations
               </h2>
-              <p style={{ color: "#8a8578", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+              <p style={{ color: "var(--admin-text-muted, #8a8578)", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
                 Send new feedback directly to your Slack or Discord channel. Never miss a submission. Available on the Pro plan.
               </p>
               <button
-                onClick={() => setView("billing")}
+                onClick={() => goToBilling("integrations")}
                 style={{
                   padding: "12px 28px", border: "none", borderRadius: 10,
                   background: "#2d6a6a", color: "#fff", fontSize: 14,
@@ -884,9 +957,23 @@ function AdminPageInner() {
           </div>
         );
 
+      case "profile":
+        return (
+          <div style={{ padding: 36 }}>
+            <ProfileSettings />
+          </div>
+        );
+
+      case "notifications":
+        return (
+          <div style={{ padding: 36 }}>
+            <NotificationSettings orgId={orgId} />
+          </div>
+        );
+
       case "billing":
         return (
-          <BillingSettings orgId={orgId} billingStatus={billingParam} />
+          <BillingSettings orgId={orgId} billingStatus={billingParam} featureSource={billingSource} />
         );
 
       default:
@@ -902,7 +989,9 @@ function AdminPageInner() {
       />
       <style>{adminResponsiveCss}</style>
       <ToastContainer />
-      <div style={{ display: "flex", minHeight: "100vh", background: "#f2f0eb" }}>
+      <WelcomeModal orgId={orgId} uid={user.uid} primaryColor={org.primaryColor} />
+      <UpgradeModal orgId={orgId} uid={user.uid} currentPlan={org.plan} primaryColor={org.primaryColor} />
+      <div style={{ display: "flex", minHeight: "100vh", background: "var(--admin-bg, #f2f0eb)" }}>
         <AdminSidebar
           orgId={orgId}
           activeView={view}
@@ -912,14 +1001,16 @@ function AdminPageInner() {
           mobileOpen={sidebarOpen}
           onMobileClose={() => setSidebarOpen(false)}
           plan={org.plan}
+          isTrialing={org.isTrialing}
+          trialEndsAt={org.trialEndsAt}
           allOrgs={allOrgs}
           onOrgSwitch={(newOrg) => { setOrg(newOrg); setCategoryFilter(null); setView("inbox"); }}
           onAddOrg={canAddOrg ? () => setNewOrgOpen(true) : undefined}
         />
-        <main className="admin-main" style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
+        <main className={`admin-main${selectedFeedback ? " admin-detail-open" : ""}`} style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
           {!isEmailVerified && <EmailVerificationBanner />}
           {mobileTopBar}
-          {renderView()}
+          <div className="admin-view-content">{renderView()}</div>
           {selectedFeedback && (
             <FeedbackDetail
               orgId={orgId}
@@ -944,17 +1035,18 @@ function AdminPageInner() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#fff", borderRadius: 20, padding: "40px 36px",
+              background: "var(--admin-card, #fff)", borderRadius: 20, padding: "40px 36px",
               maxWidth: 440, width: "100%",
-              boxShadow: "0 16px 64px rgba(0,0,0,0.2)",
+              boxShadow: "var(--admin-shadow-lg, 0 16px 64px rgba(0,0,0,0.2))",
               fontFamily: fontStack,
               animation: "scaleIn 0.2s ease",
+              color: "var(--admin-text, #1a1a2e)",
             }}
           >
-            <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 6, color: "#1a1a2e" }}>
+            <h2 style={{ fontFamily: displayFont, fontSize: 22, fontWeight: 600, marginBottom: 6, color: "var(--admin-text, #1a1a2e)" }}>
               Add Organization
             </h2>
-            <p style={{ fontSize: 13, color: "#8a8578", marginBottom: 24 }}>
+            <p style={{ fontSize: 13, color: "var(--admin-text-muted, #8a8578)", marginBottom: 24 }}>
               Pro plan allows up to 3 organizations. You have {allOrgs.length} of 3.
             </p>
 

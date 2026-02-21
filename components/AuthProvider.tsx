@@ -15,7 +15,7 @@ import {
   updateProfile,
   User,
 } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { auth, collections, updateDoc } from "../lib/firebase";
 import { getMyOrganizations } from "../lib/data";
 import type { Organization } from "../types";
 
@@ -50,9 +50,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Load the user's org
         try {
           const orgs = await getMyOrganizations();
-          setAllOrgs(orgs);
-          if (orgs.length > 0) {
-            setOrg(orgs[0]); // Default to first org
+          // ── Trial expiry check ────────────────────────────────
+          // If a trial org has expired, downgrade it to free now.
+          const now = new Date().toISOString();
+          const checkedOrgs = await Promise.all(
+            orgs.map(async (o) => {
+              if (o.isTrialing && o.trialEndsAt && o.trialEndsAt < now) {
+                try {
+                  await updateDoc(collections.organization(o.id), {
+                    plan: "free",
+                    isTrialing: false,
+                  });
+                  return { ...o, plan: "free" as const, isTrialing: false };
+                } catch {
+                  // Non-fatal — return original
+                }
+              }
+              return o;
+            })
+          );
+          setAllOrgs(checkedOrgs);
+          if (checkedOrgs.length > 0) {
+            setOrg(checkedOrgs[0]); // Default to first org
           }
         } catch (err) {
           console.error("Failed to load orgs:", err);
@@ -151,8 +170,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshOrg = async () => {
     if (!user) return;
     const orgs = await getMyOrganizations();
-    setAllOrgs(orgs);
-    if (orgs.length > 0) setOrg(orgs[0]);
+    const now = new Date().toISOString();
+    const checkedOrgs = await Promise.all(
+      orgs.map(async (o) => {
+        if (o.isTrialing && o.trialEndsAt && o.trialEndsAt < now) {
+          try {
+            await updateDoc(collections.organization(o.id), {
+              plan: "free",
+              isTrialing: false,
+            });
+            return { ...o, plan: "free" as const, isTrialing: false };
+          } catch {
+            // Non-fatal
+          }
+        }
+        return o;
+      })
+    );
+    setAllOrgs(checkedOrgs);
+    if (checkedOrgs.length > 0) setOrg(checkedOrgs[0]);
   };
 
   // Reload the Firebase user object to get the latest emailVerified status.

@@ -15,19 +15,23 @@ const displayFont = "'Fraunces', Georgia, serif";
 
 interface Props {
   orgId: string;
+  org?: { slug?: string; logoUrl?: string | null; submissionCount?: number } | null;
   onOpenThread: (threadId: string, feedbackId: string) => void;
   onSelect?: (feedback: Feedback) => void;
+  onNavigate?: (view: string) => void;
   categoryFilter?: string | null;
   showArchived?: boolean;
   viewFilter?: "inbox" | "needs_reply" | "resolved" | "urgent";
 }
 
-export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFilter, showArchived, viewFilter }: Props) {
+export default function FeedbackList({ orgId, org, onOpenThread, onSelect, onNavigate, categoryFilter, showArchived, viewFilter }: Props) {
   const { theme } = useBrand();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Multi-select state
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -54,11 +58,11 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
   const filtered = feedback.filter((f) => {
     // View-level filtering from sidebar nav
     if (viewFilter === "resolved") {
-      // Only show resolved/archived items
-      if (f.status !== "resolved" && f.status !== "archived") return false;
+      // Only show resolved items — archived are separate
+      if (f.status !== "resolved") return false;
     } else if (viewFilter === "needs_reply") {
-      // Only show needs_reply and new items
-      if (f.status !== "needs_reply" && f.status !== "new") return false;
+      // Show needs_reply, new, and reopened items
+      if (f.status !== "needs_reply" && f.status !== "new" && f.status !== "reopened") return false;
     } else if (viewFilter === "urgent") {
       // Only show urgent items that are still active
       if (f.sentimentLabel !== "urgent") return false;
@@ -179,6 +183,7 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
     needs_reply: { color: theme.accent, label: "Needs reply" },
     replied: { color: theme.primary, label: "Replied" },
     resolved: { color: theme.muted, label: "Resolved" },
+    reopened: { color: "#d97706", label: "Reopened" },
     archived: { color: theme.muted, label: "Archived" },
   };
 
@@ -245,13 +250,19 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
         <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => {
+            const val = e.target.value;
+            setSearchInput(val);
+            // Debounce search by 250ms
+            if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+            searchTimerRef.current = setTimeout(() => setSearch(val), 250);
+          }}
           placeholder="Search feedback..."
           style={{
             flex: 1, minWidth: 180, maxWidth: 280, padding: "8px 12px",
-            border: `1.5px solid ${theme.divider}`, borderRadius: 8, fontSize: 13,
-            background: "#fff", outline: "none", fontFamily: fontStack,
+            border: `1.5px solid var(--admin-border, ${theme.divider})`, borderRadius: 8, fontSize: 13,
+            background: "var(--admin-card, #fff)", color: "var(--admin-text, #1a1a2e)", outline: "none", fontFamily: fontStack,
           }}
         />
 
@@ -260,11 +271,12 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
           <button
             key={f.id}
             onClick={() => setTypeFilter(f.id)}
+            className={typeFilter === f.id ? "admin-filter-chip-active" : "admin-filter-chip"}
             style={{
               padding: "7px 12px", borderRadius: 100, fontSize: 11, fontWeight: 600,
-              border: `1.5px solid ${typeFilter === f.id ? theme.ink : theme.divider}`,
-              background: typeFilter === f.id ? theme.ink : "#fff",
-              color: typeFilter === f.id ? "#f8f6f1" : theme.ink,
+              border: `1.5px solid ${typeFilter === f.id ? theme.ink : "var(--admin-border, " + theme.divider + ")"}`,
+              background: typeFilter === f.id ? theme.ink : "var(--admin-card, #fff)",
+              color: typeFilter === f.id ? "#f8f6f1" : "var(--admin-text, " + theme.ink + ")",
               cursor: "pointer", outline: "none", fontFamily: fontStack,
             }}
           >
@@ -272,22 +284,37 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
           </button>
         ))}
 
-        {/* Divider */}
-        <div style={{ width: 1, height: 20, background: theme.divider, margin: "0 2px", flexShrink: 0 }} />
+        {/* Divider — only show when status filters are visible */}
+        {viewFilter !== "resolved" && viewFilter !== "urgent" && viewFilter !== "needs_reply" && (
+          <div style={{ width: 1, height: 20, background: theme.divider, margin: "0 2px", flexShrink: 0 }} />
+        )}
+        {/* Only show "Urgent" (not "Needs Reply") when on needs_reply tab */}
+        {viewFilter === "needs_reply" && (
+          <div style={{ width: 1, height: 20, background: theme.divider, margin: "0 2px", flexShrink: 0 }} />
+        )}
 
-        {/* Status filters: Needs Reply / Urgent — independently toggleable */}
-        {statusFilters.map((f) => {
+        {/* Status filters: contextually shown per tab */}
+        {statusFilters.filter((f) => {
+          // Resolved tab: no status filters (everything is resolved)
+          if (viewFilter === "resolved") return false;
+          // Urgent tab: already filtered to urgent, no status filters
+          if (viewFilter === "urgent") return false;
+          // Needs Reply tab: hide redundant "Needs Reply" chip, show only "Urgent"
+          if (viewFilter === "needs_reply" && f.id === "needs_reply") return false;
+          return true;
+        }).map((f) => {
           const isActive = statusFilter === f.id;
           const isUrgent = f.id === "urgent";
           return (
             <button
               key={f.id}
               onClick={() => setStatusFilter(isActive ? "all" : f.id)}
+              className={isActive ? "admin-filter-chip-active" : "admin-filter-chip"}
               style={{
                 padding: "7px 12px", borderRadius: 100, fontSize: 11, fontWeight: 600,
-                border: `1.5px solid ${isActive ? (isUrgent ? "#dc2626" : theme.accent) : theme.divider}`,
-                background: isActive ? (isUrgent ? "#fee2e2" : theme.accentGlow) : "#fff",
-                color: isActive ? (isUrgent ? "#dc2626" : theme.accent) : theme.ink,
+                border: `1.5px solid ${isActive ? (isUrgent ? "#dc2626" : theme.accent) : "var(--admin-border, " + theme.divider + ")"}`,
+                background: isActive ? (isUrgent ? "#fee2e2" : theme.accentGlow) : "var(--admin-card, #fff)",
+                color: isActive ? (isUrgent ? "#dc2626" : theme.accent) : "var(--admin-text, " + theme.ink + ")",
                 cursor: "pointer", outline: "none", fontFamily: fontStack,
               }}
             >
@@ -298,7 +325,10 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: selected.size > 0 ? 80 : 0 }}>
-        {filtered.length === 0 && (
+        {filtered.length === 0 && feedback.length === 0 && (org?.submissionCount ?? 0) < 5 && (
+          <QuickStartChecklist org={org} onNavigate={onNavigate} theme={theme} />
+        )}
+        {filtered.length === 0 && (feedback.length > 0 || (org?.submissionCount ?? 0) >= 5) && (
           <div style={{ padding: 40, textAlign: "center", color: theme.muted, fontSize: 14, fontFamily: fontStack }}>
             {feedback.length === 0
               ? "No feedback yet. Share your form link to start collecting!"
@@ -316,9 +346,10 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
           return (
             <div
               key={f.id}
+              className="admin-feedback-item"
               onClick={(e) => handleCardClick(e, f, i)}
               style={{
-                background: isSelected ? `${theme.primary}08` : "#fff",
+                background: isSelected ? `${theme.primary}08` : "var(--admin-card, #fff)",
                 borderRadius: 14,
                 padding: "18px 22px",
                 boxShadow: isSelected ? `0 0 0 2px ${theme.primary}40` : "0 1px 3px rgba(0,0,0,0.03)",
@@ -362,7 +393,7 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
                 </div>
 
                 <div style={{
-                  fontSize: 13, color: theme.ink, lineHeight: 1.5, overflow: "hidden",
+                  fontSize: 13, color: "var(--admin-text, " + theme.ink + ")", lineHeight: 1.5, overflow: "hidden",
                   display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", fontFamily: fontStack,
                 }}>
                   {f.text}
@@ -389,7 +420,7 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
                           📦 Archive
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "new"); }}
+                          onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "reopened"); }}
                           style={{
                             fontSize: 11, color: theme.accent,
                             background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
@@ -400,7 +431,7 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
                       </span>
                     ) : f.status === "archived" ? (
                       <button
-                        onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "new"); }}
+                        onClick={(e) => { e.stopPropagation(); updateFeedbackStatus(orgId, f.id, "reopened"); }}
                         style={{
                           marginLeft: "auto", fontSize: 11, color: theme.accent,
                           background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: fontStack,
@@ -511,6 +542,143 @@ export default function FeedbackList({ orgId, onOpenThread, onSelect, categoryFi
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Quick Start Checklist ──────────────────────────────────────
+function QuickStartChecklist({
+  org,
+  onNavigate,
+  theme,
+}: {
+  org?: { slug?: string; logoUrl?: string | null; submissionCount?: number } | null;
+  onNavigate?: (view: string) => void;
+  theme: BrandTheme;
+}) {
+  const slug = org?.slug || "";
+  const hasLogo = !!org?.logoUrl;
+  const hasSubmissions = (org?.submissionCount ?? 0) > 0;
+
+  const items: { icon: string; label: string; done: boolean; action: () => void }[] = [
+    {
+      icon: "📬",
+      label: "Submit your first test feedback",
+      done: hasSubmissions,
+      action: () => slug && window.open(`/${slug}`, "_blank"),
+    },
+    {
+      icon: "🎨",
+      label: "Upload your logo",
+      done: hasLogo,
+      action: () => onNavigate?.("branding"),
+    },
+    {
+      icon: "📱",
+      label: "Generate a QR code",
+      done: false,
+      action: () => onNavigate?.("qrcode"),
+    },
+    {
+      icon: "📋",
+      label: "Create your first survey",
+      done: false,
+      action: () => onNavigate?.("surveys"),
+    },
+    {
+      icon: "🔗",
+      label: "Share your form link with your community",
+      done: false,
+      action: () => slug && window.open(`https://tellsafe.app/${slug}`, "_blank"),
+    },
+  ];
+
+  const doneCount = items.filter((i) => i.done).length;
+
+  return (
+    <div style={{
+      background: "#fff",
+      borderRadius: 18,
+      padding: "28px 28px 24px",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+      fontFamily: fontStack,
+      margin: "8px 0",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <div>
+          <h3 style={{ fontFamily: displayFont, fontSize: 18, fontWeight: 600, margin: "0 0 4px", color: "#1a1a2e" }}>
+            🚀 Get started
+          </h3>
+          <p style={{ fontSize: 13, color: theme.muted, margin: 0 }}>
+            {doneCount === items.length
+              ? "You're all set! Feedback will appear here."
+              : `${doneCount} of ${items.length} done`}
+          </p>
+        </div>
+        {/* Progress ring */}
+        <div style={{ position: "relative", width: 44, height: 44, flexShrink: 0 }}>
+          <svg width="44" height="44" style={{ transform: "rotate(-90deg)" }}>
+            <circle cx="22" cy="22" r="18" fill="none" stroke="#e8e5de" strokeWidth="4" />
+            <circle
+              cx="22" cy="22" r="18" fill="none"
+              stroke={theme.primary} strokeWidth="4"
+              strokeDasharray={`${(doneCount / items.length) * 113} 113`}
+              strokeLinecap="round"
+              style={{ transition: "stroke-dasharray 0.4s ease" }}
+            />
+          </svg>
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, fontWeight: 700, color: theme.primary,
+          }}>
+            {doneCount}/{items.length}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {items.map((item, i) => (
+          <button
+            key={i}
+            onClick={item.action}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "11px 14px",
+              border: `1.5px solid ${item.done ? "#d1fae5" : theme.divider}`,
+              borderRadius: 12,
+              background: item.done ? "#f0fdf4" : "#fafaf9",
+              cursor: item.done ? "default" : "pointer",
+              textAlign: "left", fontFamily: fontStack,
+              transition: "all 0.15s",
+            }}
+          >
+            {/* Checkbox */}
+            <div style={{
+              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+              border: `2px solid ${item.done ? "#059669" : theme.divider}`,
+              background: item.done ? "#059669" : "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 12, color: "#fff", fontWeight: 700,
+              transition: "all 0.15s",
+            }}>
+              {item.done ? "✓" : ""}
+            </div>
+            <span style={{ fontSize: 14 }}>{item.icon}</span>
+            <span style={{
+              fontSize: 14, fontWeight: 500,
+              color: item.done ? "#059669" : "#1a1a2e",
+              textDecoration: item.done ? "line-through" : "none",
+              opacity: item.done ? 0.7 : 1,
+            }}>
+              {item.label}
+            </span>
+            {!item.done && (
+              <span style={{ marginLeft: "auto", fontSize: 12, color: theme.muted }}>→</span>
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
