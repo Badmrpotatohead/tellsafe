@@ -28,6 +28,9 @@ import IntegrationsSettings from "../../components/IntegrationsSettings";
 import type { AdminView } from "../../components/AdminSidebar";
 import { PLAN_LIMITS } from "../../types";
 import { createOrganization } from "../../lib/data";
+import EmailVerificationBanner from "../../components/EmailVerificationBanner";
+import { sendEmailVerification } from "firebase/auth";
+import { auth } from "../../lib/firebase";
 
 const fontStack = "'Outfit', system-ui, sans-serif";
 const displayFont = "'Fraunces', Georgia, serif";
@@ -115,7 +118,7 @@ export default function AdminPage() {
 }
 
 function AdminPageInner() {
-  const { user, org, allOrgs, loading, setOrg, refreshOrg } = useAuth();
+  const { user, org, allOrgs, loading, setOrg, refreshOrg, reloadUser } = useAuth();
   const [view, setView] = useState<AdminView>("inbox");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadFeedbackId, setThreadFeedbackId] = useState<string | null>(null);
@@ -157,6 +160,21 @@ function AdminPageInner() {
       setNewOrgError(err.message || "Failed to create organization.");
     } finally {
       setNewOrgLoading(false);
+    }
+  };
+
+  // --- Email verification state ---
+  const [verifResendStatus, setVerifResendStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  const handleVerifResend = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    setVerifResendStatus("sending");
+    try {
+      await sendEmailVerification(currentUser);
+      setVerifResendStatus("sent");
+    } catch {
+      setVerifResendStatus("error");
     }
   };
 
@@ -292,6 +310,150 @@ function AdminPageInner() {
     );
   }
 
+  // --- Email verification enforcement ---
+  const isEmailVerified = user?.emailVerified ?? false;
+
+  // creationTime from Firebase metadata (e.g. "Sat, 01 Feb 2025 12:00:00 GMT")
+  const createdAtMs = user?.metadata?.creationTime
+    ? new Date(user.metadata.creationTime).getTime()
+    : Date.now();
+  const accountAgeMs = Date.now() - createdAtMs;
+  const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+  const isLockedOut = !isEmailVerified && accountAgeMs > FOURTEEN_DAYS_MS;
+
+  if (isLockedOut) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: fontStack,
+          background: "#f2f0eb",
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 24,
+            padding: "48px 40px",
+            maxWidth: 460,
+            width: "100%",
+            boxShadow: "0 8px 32px rgba(26,26,46,0.10)",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }}>✉️</div>
+          <h1
+            style={{
+              fontFamily: displayFont,
+              fontSize: 24,
+              fontWeight: 600,
+              marginBottom: 10,
+              color: "#1a1a2e",
+            }}
+          >
+            Please verify your email
+          </h1>
+          <p
+            style={{
+              color: "#8a8578",
+              fontSize: 14,
+              lineHeight: 1.7,
+              marginBottom: 28,
+            }}
+          >
+            Your account needs email verification to access the TellSafe dashboard.
+            Check your inbox for the verification link, or request a new one below.
+            <br /><br />
+            <strong style={{ color: "#1a1a2e" }}>Your community&apos;s feedback form is still live</strong> — only the admin dashboard is locked.
+          </p>
+
+          {verifResendStatus === "sent" ? (
+            <div
+              style={{
+                padding: "12px 16px",
+                borderRadius: 10,
+                background: "rgba(5,150,105,0.08)",
+                border: "1.5px solid rgba(5,150,105,0.2)",
+                color: "#059669",
+                fontSize: 13,
+                fontWeight: 600,
+                marginBottom: 20,
+              }}
+            >
+              ✓ Verification email sent — check your inbox!
+            </div>
+          ) : verifResendStatus === "error" ? (
+            <div
+              style={{
+                padding: "12px 16px",
+                borderRadius: 10,
+                background: "rgba(192,93,59,0.08)",
+                color: "#c05d3b",
+                fontSize: 13,
+                marginBottom: 20,
+              }}
+            >
+              Couldn&apos;t send email. Please wait a moment and try again.
+            </div>
+          ) : null}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={handleVerifResend}
+              disabled={verifResendStatus === "sending" || verifResendStatus === "sent"}
+              style={{
+                padding: "13px 0",
+                border: "none",
+                borderRadius: 12,
+                background: "#2d6a6a",
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: verifResendStatus === "sending" || verifResendStatus === "sent" ? "not-allowed" : "pointer",
+                opacity: verifResendStatus === "sending" || verifResendStatus === "sent" ? 0.7 : 1,
+                fontFamily: fontStack,
+              }}
+            >
+              {verifResendStatus === "sending" ? "Sending..." : "Resend verification email"}
+            </button>
+            <button
+              onClick={async () => { await reloadUser(); }}
+              style={{
+                padding: "13px 0",
+                border: "1.5px solid rgba(26,26,46,0.12)",
+                borderRadius: 12,
+                background: "transparent",
+                color: "#8a8578",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: fontStack,
+              }}
+            >
+              I&apos;ve verified my email →
+            </button>
+          </div>
+          <p style={{ marginTop: 20, fontSize: 12, color: "#8a8578" }}>
+            Wrong account?{" "}
+            <button
+              onClick={async () => {
+                const { signOut } = await import("firebase/auth");
+                await signOut(auth);
+              }}
+              style={{ background: "none", border: "none", color: "#2d6a6a", fontWeight: 600, cursor: "pointer", fontSize: 12, fontFamily: fontStack, padding: 0 }}
+            >
+              Sign out →
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const orgId = org.id;
 
   // Pro plan allows up to 3 orgs; show "+ Add Org" only when under the limit
@@ -406,6 +568,7 @@ function AdminPageInner() {
             onAddOrg={canAddOrg ? () => setNewOrgOpen(true) : undefined}
           />
           <main className="admin-main" style={{ marginLeft: 240, flex: 1 }}>
+            {!isEmailVerified && <EmailVerificationBanner />}
             {mobileTopBar}
             <RelayThread
               orgId={orgId}
@@ -732,6 +895,7 @@ function AdminPageInner() {
           onAddOrg={canAddOrg ? () => setNewOrgOpen(true) : undefined}
         />
         <main className="admin-main" style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>
+          {!isEmailVerified && <EmailVerificationBanner />}
           {mobileTopBar}
           {renderView()}
           {selectedFeedback && (

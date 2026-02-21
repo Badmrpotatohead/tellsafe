@@ -30,6 +30,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   setOrg: (org: Organization | null) => void;
   refreshOrg: () => Promise<void>;
+  reloadUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -142,9 +143,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (orgs.length > 0) setOrg(orgs[0]);
   };
 
+  // Reload the Firebase user object to get the latest emailVerified status.
+  // Firebase caches the auth token, so we need this explicit reload to pick
+  // up a verification that happened in another tab or after clicking the link.
+  const reloadUser = async () => {
+    if (!auth.currentUser) return;
+    await auth.currentUser.reload();
+    // Trigger a re-render by reading the fresh user object
+    setUser({ ...auth.currentUser } as User);
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, org, allOrgs, loading, error, login, signup, logout, setOrg, refreshOrg }}
+      value={{ user, org, allOrgs, loading, error, login, signup, logout, setOrg, refreshOrg, reloadUser }}
     >
       {children}
     </AuthContext.Provider>
