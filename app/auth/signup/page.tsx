@@ -4,7 +4,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../../components/AuthProvider";
 import { createOrganization } from "../../../lib/data";
@@ -24,6 +24,7 @@ export default function SignupPage() {
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const orgSubmitting = useRef(false);
 
   const generateSlug = (name: string) => {
     return name
@@ -58,6 +59,10 @@ export default function SignupPage() {
 
   const handleOrgSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Prevent double-submit — a second click while loading would create a
+    // duplicate request that gets a 409 and shows an error instead of navigating.
+    if (orgSubmitting.current) return;
+    orgSubmitting.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -67,6 +72,7 @@ export default function SignupPage() {
       setError(err.message || "Failed to create organization.");
     } finally {
       setLoading(false);
+      orgSubmitting.current = false;
     }
   };
 

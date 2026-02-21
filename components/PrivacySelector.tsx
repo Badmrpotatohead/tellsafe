@@ -66,9 +66,10 @@ interface Props {
   relayEnabled: boolean; // false on free plan
   translations?: PrivacyTranslations;
   showLabel?: boolean; // hide when a hero h1 already provides context
+  labelOrgName?: string; // when set, label reads "How would you like to share with {orgName}?"
 }
 
-export default function PrivacySelector({ value, onChange, relayEnabled, translations, showLabel = true }: Props) {
+export default function PrivacySelector({ value, onChange, relayEnabled, translations, showLabel = true, labelOrgName }: Props) {
   const { theme } = useBrand();
   const config = getPrivacyConfig(theme);
   const current = config[value];
@@ -76,6 +77,9 @@ export default function PrivacySelector({ value, onChange, relayEnabled, transla
   const types: FeedbackType[] = relayEnabled
     ? ["identified", "anonymous", "relay"]
     : ["identified", "anonymous"];
+
+  const labelText = translations?.howWouldYouLikeToShare
+    || (labelOrgName ? `How would you like to share with ${labelOrgName}?` : "How would you like to share?");
 
   return (
     <div>
@@ -92,7 +96,7 @@ export default function PrivacySelector({ value, onChange, relayEnabled, transla
             fontFamily: "'Outfit', system-ui, sans-serif",
           }}
         >
-          {translations?.howWouldYouLikeToShare || "How would you like to share?"}
+          {labelText}
         </label>
       )}
 

@@ -376,6 +376,24 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
                 borderRadius: 8,
               }}
             />
+          ) : org.plan === "free" ? (
+            /* Free plan: show TellSafe branding instead of org initials */
+            <div
+              style={{
+                width: kioskMode ? 70 : 60,
+                height: kioskMode ? 70 : 60,
+                margin: "0 auto",
+                background: "linear-gradient(135deg, #2d6a6a, #c05d3b)",
+                borderRadius: 18,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: kioskMode ? 32 : 28,
+                boxShadow: "0 4px 20px rgba(45,106,106,0.25)",
+              }}
+            >
+              🛡️
+            </div>
           ) : (
             <div
               style={{
@@ -452,6 +470,7 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
             onChange={setPrivacy}
             relayEnabled={relayEnabled}
             showLabel={org.plan === "free"}
+            labelOrgName={org.plan === "free" ? orgName : undefined}
             translations={lang !== "en" ? {
               howWouldYouLikeToShare: t.whatsThisAbout,
               identified: t.identified,

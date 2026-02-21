@@ -54,7 +54,28 @@ export async function createOrganization(name: string, slug: string) {
     body: JSON.stringify({ name, slug }),
   });
 
-  const data = await res.json();
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+
+  // 409 = slug already taken. If this user just created it (double-submit race),
+  // treat it as success by looking up the existing org for this slug.
+  if (res.status === 409) {
+    // Try to find the org that owns this slug and return it
+    const slugRes = await fetch(`/api/org/by-slug?slug=${encodeURIComponent(slug)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (slugRes.ok) {
+      const slugData = await slugRes.json();
+      return slugData as { orgId: string; slug: string };
+    }
+    // Slug is taken by someone else — surface the original error
+    throw new Error(data.error || "That URL is already taken. Try a different one.");
+  }
+
   if (!res.ok) throw new Error(data.error || "Failed to create organization.");
   return data as { orgId: string; slug: string };
 }
