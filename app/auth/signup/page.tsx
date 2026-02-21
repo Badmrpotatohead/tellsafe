@@ -146,8 +146,7 @@ export default function SignupPage() {
         {step === "account" ? (
           <>
             <div style={{ textAlign: "center", marginBottom: 28 }}>
-              <a href="/" style={{ textDecoration: "none" }}>
-                <div
+              <a href="/" style={{ textDecoration: "none" }}><div
                   style={{
                     width: 48, height: 48, borderRadius: 14,
                     background: "linear-gradient(135deg, #2d6a6a, #c05d3b)",
@@ -247,7 +246,7 @@ export default function SignupPage() {
               </button>
             </form>
           </>
-        ) : (
+        ) : step === "org" ? (
           <>
             <div style={{ textAlign: "center", marginBottom: 28 }}>
               <h1 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 6 }}>
@@ -322,7 +321,7 @@ export default function SignupPage() {
               </button>
             </form>
           </>
-        )}
+        ) : null}
 
         {step === "account" && (
           <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "#8a8578" }}>
@@ -340,7 +339,7 @@ export default function SignupPage() {
               width: 64, height: 64, borderRadius: "50%",
               background: "linear-gradient(135deg, #2d6a6a, #a3c9c9)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 28, margin: "0 auto 20px",
+              fontSize: 28, margin: "0 auto 24px",
             }}>🚀</div>
 
             <h1 style={{ fontFamily: displayFont, fontSize: 24, fontWeight: 600, marginBottom: 8, color: "#1a1a2e" }}>
