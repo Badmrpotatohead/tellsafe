@@ -230,6 +230,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const responseRef = await surveyRef.collection("responses").add(responseData);
 
+    // Write responseId back to the relay thread so the reply route can find the
+    // encrypted email via a direct doc lookup (fallback to threadId query).
+    if (responseType === "relay" && responseData.threadId) {
+      adminDb
+        .collection("organizations")
+        .doc(orgId)
+        .collection("threads")
+        .doc(responseData.threadId)
+        .update({ responseId: responseRef.id })
+        .catch((e: unknown) => console.warn("[Survey relay] Failed to write responseId to thread:", e));
+    }
+
     await surveyRef.update({
       responseCount: FieldValue.increment(1),
       updatedAt: now,

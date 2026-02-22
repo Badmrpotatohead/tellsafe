@@ -121,6 +121,23 @@ export async function POST(request: NextRequest) {
 
       if (!responsesSnap.empty) {
         encryptedEmail = responsesSnap.docs[0].data().encryptedEmail || null;
+      } else if (threadData.responseId) {
+        // Fallback: direct doc lookup via responseId written at submission time
+        console.warn(`[relay/reply] threadId query returned empty for thread ${threadId} — trying responseId fallback`);
+        const responseSnap = await adminDb
+          .collection("organizations")
+          .doc(orgId)
+          .collection("surveys")
+          .doc(threadData.surveyId)
+          .collection("responses")
+          .doc(threadData.responseId)
+          .get();
+        encryptedEmail = responseSnap.data()?.encryptedEmail || null;
+        if (!encryptedEmail) {
+          console.warn(`[relay/reply] Fallback also found no encryptedEmail for responseId ${threadData.responseId}`);
+        }
+      } else {
+        console.warn(`[relay/reply] No threadId query match and no responseId on thread ${threadId}`);
       }
     } else if (threadData?.feedbackId) {
       // Regular feedback relay thread
@@ -138,6 +155,7 @@ export async function POST(request: NextRequest) {
     if (encryptedEmail) {
       try {
         const memberEmail = decryptEmail(encryptedEmail);
+        console.log(`[relay/reply] Sending relay email for thread ${threadId}`);
         await sendRelayReply({
           memberEmail,
           orgName,
@@ -145,12 +163,13 @@ export async function POST(request: NextRequest) {
           adminName: authorName || "Organizer",
           replyText: text.trim(),
         });
+        console.log(`[relay/reply] Email sent successfully for thread ${threadId}`);
       } catch (emailErr) {
         // Non-fatal: message is already saved to Firestore
         console.error("[relay/reply] Failed to send email:", emailErr);
       }
     } else {
-      console.warn(`[relay/reply] No encrypted email found for thread ${threadId}`);
+      console.warn(`[relay/reply] No encrypted email found for thread ${threadId} — member will not receive email notification`);
     }
 
     return NextResponse.json({ success: true });

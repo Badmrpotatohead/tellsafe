@@ -24,9 +24,10 @@ interface Props {
   threadId: string;
   feedbackId: string;
   onBack: () => void;
+  backLabel?: string;
 }
 
-export default function RelayThread({ orgId, threadId, feedbackId, onBack }: Props) {
+export default function RelayThread({ orgId, threadId, feedbackId, onBack, backLabel }: Props) {
   const { theme } = useBrand();
   const { user, org } = useAuth();
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
@@ -117,7 +118,7 @@ export default function RelayThread({ orgId, threadId, feedbackId, onBack }: Pro
             fontFamily: fontStack,
           }}
         >
-          ← Back to Inbox
+          {backLabel ?? "← Back to Inbox"}
         </button>
 
         <div style={{ textAlign: "center" }}>

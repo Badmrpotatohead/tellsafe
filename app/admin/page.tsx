@@ -157,6 +157,8 @@ function AdminPageInner() {
   const [billingSource, setBillingSource] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadFeedbackId, setThreadFeedbackId] = useState<string | null>(null);
+  const [threadOrigin, setThreadOrigin] = useState<"inbox" | "survey_results">("inbox");
+  const [threadOriginSurvey, setThreadOriginSurvey] = useState<any>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
   const [editingSurvey, setEditingSurvey] = useState<any>(null);
@@ -594,16 +596,24 @@ function AdminPageInner() {
     }
   };
 
-  const openThread = (tid: string, fid: string) => {
+  const openThread = (tid: string, fid: string, origin?: "inbox" | "survey_results", originSurvey?: any) => {
     setThreadId(tid);
     setThreadFeedbackId(fid);
     setSelectedFeedback(null);
+    setThreadOrigin(origin || "inbox");
+    setThreadOriginSurvey(originSurvey || null);
     setView("inbox");
   };
 
   const closeThread = () => {
     setThreadId(null);
     setThreadFeedbackId(null);
+    if (threadOrigin === "survey_results" && threadOriginSurvey) {
+      setViewingSurveyResults(threadOriginSurvey);
+      setView("survey_results");
+    }
+    setThreadOrigin("inbox");
+    setThreadOriginSurvey(null);
   };
 
   // Thread view
@@ -642,6 +652,7 @@ function AdminPageInner() {
               threadId={threadId}
               feedbackId={threadFeedbackId}
               onBack={closeThread}
+              backLabel={threadOrigin === "survey_results" ? "← Back to Survey Results" : "← Back to Inbox"}
             />
           </main>
         </div>
@@ -894,8 +905,9 @@ function AdminPageInner() {
             survey={viewingSurveyResults}
             onBack={() => { setViewingSurveyResults(null); setView("surveys"); }}
             onOpenThread={(tid, fid) => {
+              const survey = viewingSurveyResults;
               setViewingSurveyResults(null);
-              openThread(tid, fid);
+              openThread(tid, fid, "survey_results", survey);
             }}
           />
         ) : null;
