@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminCollections } from "../../../lib/firebase-admin";
 import type { Feedback, Organization } from "../../../types";
+import { PLAN_LIMITS } from "../../../types";
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,8 +40,20 @@ export async function GET(request: NextRequest) {
 
     // --- Verify user is admin of this org ---
     const adminDoc = await adminCollections.admins(orgId).doc(uid).get();
-    if (!adminDoc.exists) {
+    const orgCheckSnap = await adminCollections.organization(orgId).get();
+    if (!adminDoc.exists && (!orgCheckSnap.exists || orgCheckSnap.data()?.ownerId !== uid)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // --- Server-side plan gate: CSV export requires Pro ---
+    if (orgCheckSnap.exists) {
+      const orgPlan = (orgCheckSnap.data() as Organization).plan || "free";
+      if (!PLAN_LIMITS[orgPlan].hasCsvExport) {
+        return NextResponse.json(
+          { error: "CSV export requires the Pro plan." },
+          { status: 403 }
+        );
+      }
     }
 
     // --- Optional filters ---

@@ -145,13 +145,18 @@ export default function FeedbackList({ orgId, org, onOpenThread, onSelect, onNav
   // Batch actions
   const handleBatchArchive = async () => {
     setBatchLoading(true);
-    const promises = Array.from(selected).map((id) =>
-      updateFeedbackStatus(orgId, id, "archived")
-    );
-    await Promise.all(promises);
-    setSelected(new Set());
-    setLastClickedId(null);
-    setBatchLoading(false);
+    try {
+      const promises = Array.from(selected).map((id) =>
+        updateFeedbackStatus(orgId, id, "archived")
+      );
+      await Promise.all(promises);
+      setSelected(new Set());
+      setLastClickedId(null);
+    } catch (err) {
+      console.error("Batch archive failed:", err);
+    } finally {
+      setBatchLoading(false);
+    }
   };
 
   const handleBatchDelete = async () => {
@@ -160,22 +165,32 @@ export default function FeedbackList({ orgId, org, onOpenThread, onSelect, onNav
       return;
     }
     setBatchLoading(true);
-    await batchDeleteFeedback(orgId, Array.from(selected));
-    setSelected(new Set());
-    setLastClickedId(null);
-    setConfirmDelete(false);
-    setBatchLoading(false);
+    try {
+      await batchDeleteFeedback(orgId, Array.from(selected));
+      setSelected(new Set());
+      setLastClickedId(null);
+      setConfirmDelete(false);
+    } catch (err) {
+      console.error("Batch delete failed:", err);
+    } finally {
+      setBatchLoading(false);
+    }
   };
 
   const handleBatchResolve = async () => {
     setBatchLoading(true);
-    const promises = Array.from(selected).map((id) =>
-      updateFeedbackStatus(orgId, id, "resolved")
-    );
-    await Promise.all(promises);
-    setSelected(new Set());
-    setLastClickedId(null);
-    setBatchLoading(false);
+    try {
+      const promises = Array.from(selected).map((id) =>
+        updateFeedbackStatus(orgId, id, "resolved")
+      );
+      await Promise.all(promises);
+      setSelected(new Set());
+      setLastClickedId(null);
+    } catch (err) {
+      console.error("Batch resolve failed:", err);
+    } finally {
+      setBatchLoading(false);
+    }
   };
 
   const statusMap: Record<FeedbackStatus, { color: string; label: string }> = {
@@ -577,7 +592,7 @@ function QuickStartChecklist({
       icon: "📱",
       label: "Generate a QR code",
       done: false,
-      action: () => onNavigate?.("qrcode"),
+      action: () => onNavigate?.("qr"),
     },
     {
       icon: "📋",

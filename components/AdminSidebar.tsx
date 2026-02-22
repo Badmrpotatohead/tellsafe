@@ -64,13 +64,13 @@ export default function AdminSidebar({ orgId, activeView, onNavigate, activeCate
   }, [orgId]);
 
   const needsReplyCount = feedback.filter(
-    (f) => f.status === "needs_reply" || f.status === "new"
+    (f) => f.status === "needs_reply" || f.status === "new" || f.status === "reopened"
   ).length;
   const urgentCount = feedback.filter((f) => f.sentimentLabel === "urgent" && f.status !== "resolved" && f.status !== "archived").length;
 
   const activeCount = feedback.filter((f) => f.status !== "archived").length;
   const resolvedCount = feedback.filter(
-    (f) => f.status === "resolved" || f.status === "archived"
+    (f) => f.status === "resolved"
   ).length;
 
   const limits = PLAN_LIMITS[plan];

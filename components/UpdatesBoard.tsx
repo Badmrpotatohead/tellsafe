@@ -24,6 +24,7 @@ interface Update {
 interface Props {
   orgSlug: string;
   updates: Update[];
+  hidePoweredBy?: boolean;
 }
 
 function relativeDate(iso: string): string {
@@ -51,7 +52,7 @@ function relativeDate(iso: string): string {
   });
 }
 
-export default function UpdatesBoard({ orgSlug, updates }: Props) {
+export default function UpdatesBoard({ orgSlug, updates, hidePoweredBy }: Props) {
   const { theme, orgName, logoUrl } = useBrand();
 
   return (
@@ -334,16 +335,18 @@ export default function UpdatesBoard({ orgSlug, updates }: Props) {
           Back to feedback form
         </a>
 
-        <p
-          style={{
-            marginTop: 24,
-            fontSize: 12,
-            color: theme.muted,
-            opacity: 0.6,
-          }}
-        >
-          Powered by TellSafe
-        </p>
+        {!hidePoweredBy && (
+          <p
+            style={{
+              marginTop: 24,
+              fontSize: 12,
+              color: theme.muted,
+              opacity: 0.6,
+            }}
+          >
+            Powered by TellSafe
+          </p>
+        )}
       </footer>
     </div>
   );

@@ -42,6 +42,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // --- Input length limits to prevent abuse ---
+    if (text.length > 10000) {
+      return NextResponse.json({ error: "Feedback text is too long (max 10,000 characters)." }, { status: 400 });
+    }
+    if (authorName && authorName.length > 200) {
+      return NextResponse.json({ error: "Name is too long." }, { status: 400 });
+    }
+    if (authorEmail && authorEmail.length > 320) {
+      return NextResponse.json({ error: "Email is too long." }, { status: 400 });
+    }
+    if (relayEmail && relayEmail.length > 320) {
+      return NextResponse.json({ error: "Email is too long." }, { status: 400 });
+    }
+
+    // --- Validate feedback type ---
+    const validTypes = ["identified", "anonymous", "relay"];
+    if (!validTypes.includes(type)) {
+      return NextResponse.json({ error: "Invalid feedback type." }, { status: 400 });
+    }
+
     // --- Get org ---
     const orgSnap = await adminCollections.organization(orgId).get();
     if (!orgSnap.exists) {

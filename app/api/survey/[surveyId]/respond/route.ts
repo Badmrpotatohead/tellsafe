@@ -22,10 +22,20 @@ interface RouteContext {
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { surveyId } = context.params;
-    const orgId = request.nextUrl.searchParams.get("orgId");
+    let orgId = request.nextUrl.searchParams.get("orgId");
+    const slug = request.nextUrl.searchParams.get("slug");
+
+    // Support slug-based lookup as an alternative to orgId
+    if (!orgId && slug) {
+      const slugSnap = await adminDb.collection("slugs").doc(slug).get();
+      if (!slugSnap.exists) {
+        return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+      }
+      orgId = (slugSnap.data() as { orgId: string }).orgId;
+    }
 
     if (!orgId) {
-      return NextResponse.json({ error: "orgId required" }, { status: 400 });
+      return NextResponse.json({ error: "orgId or slug required" }, { status: 400 });
     }
 
     const surveySnap = await adminDb
@@ -76,12 +86,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
       },
       org: org
         ? {
+            id: orgId,
             name: org.name,
             slug: org.slug,
             logoUrl: org.logoUrl,
             primaryColor: org.primaryColor,
             accentColor: org.accentColor,
             tagline: org.tagline,
+            hidePoweredBy: org.hidePoweredBy || false,
           }
         : null,
     });
@@ -131,6 +143,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const now = new Date().toISOString();
+    if (survey.opensAt && now < survey.opensAt) {
+      return NextResponse.json({ error: "This survey is not open yet" }, { status: 403 });
+    }
     if (survey.closesAt && now > survey.closesAt) {
       return NextResponse.json({ error: "This survey has closed" }, { status: 403 });
     }

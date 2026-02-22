@@ -120,6 +120,7 @@ export default function SignupPage() {
     background: "#f8f6f1",
     outline: "none",
     fontFamily: fontStack,
+    boxSizing: "border-box" as const,
   };
 
   return (

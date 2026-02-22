@@ -115,7 +115,7 @@ export default function AnalyticsDashboard({ orgId }: Props) {
       const dayEnd = new Date(dayStart);
       dayEnd.setDate(dayEnd.getDate() + 1);
 
-      const dayItems = feedback.filter((f) => {
+      const dayItems = filtered.filter((f) => {
         const d = new Date(f.createdAt);
         return d >= dayStart && d < dayEnd;
       });
@@ -134,7 +134,7 @@ export default function AnalyticsDashboard({ orgId }: Props) {
       });
     }
     return data;
-  }, [feedback, timeRange]);
+  }, [filtered, timeRange]);
 
   const maxCount = Math.max(...trendData.map((d) => d.count), 1);
 

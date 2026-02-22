@@ -66,4 +66,11 @@ export const adminCollections = {
     adminDb.collection("organizations").doc(orgId).collection("updates"),
   updateDoc: (orgId: string, updateId: string) =>
     adminDb.collection("organizations").doc(orgId).collection("updates").doc(updateId),
+
+  surveys: (orgId: string) =>
+    adminDb.collection("organizations").doc(orgId).collection("surveys"),
+  survey: (orgId: string, surveyId: string) =>
+    adminDb.collection("organizations").doc(orgId).collection("surveys").doc(surveyId),
+  surveyResponses: (orgId: string, surveyId: string) =>
+    adminDb.collection("organizations").doc(orgId).collection("surveys").doc(surveyId).collection("responses"),
 };

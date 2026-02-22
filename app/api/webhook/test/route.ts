@@ -30,6 +30,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate webhook URL — only allow known webhook platforms to prevent SSRF
+    try {
+      const url = new URL(webhookUrl);
+      const allowedHosts = ["hooks.slack.com", "discord.com", "discordapp.com"];
+      const isAllowed = allowedHosts.some((h) => url.hostname === h || url.hostname.endsWith(`.${h}`));
+      if (!isAllowed || url.protocol !== "https:") {
+        return NextResponse.json(
+          { error: "Only HTTPS Slack and Discord webhook URLs are supported." },
+          { status: 400 }
+        );
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid webhook URL." }, { status: 400 });
+    }
+
     // Verify user is admin of this org
     const adminSnap = await adminCollections.admins(orgId).doc(decoded.uid).get();
     const orgSnap = await adminCollections.organization(orgId).get();

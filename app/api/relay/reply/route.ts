@@ -38,16 +38,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    if (text.length > 10000) {
+      return NextResponse.json({ error: "Reply text is too long (max 10,000 characters)." }, { status: 400 });
+    }
+
     // ── Verify admin is a member of this org ──────────────────
     const memberSnap = await adminDb
       .collection("organizations")
       .doc(orgId)
-      .collection("members")
+      .collection("admins")
       .doc(decoded.uid)
       .get();
 
     if (!memberSnap.exists) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      // Fallback: check if user is the org owner
+      const orgOwnerSnap = await adminDb.collection("organizations").doc(orgId).get();
+      if (!orgOwnerSnap.exists || orgOwnerSnap.data()?.ownerId !== decoded.uid) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     // ── Load org name ─────────────────────────────────────────

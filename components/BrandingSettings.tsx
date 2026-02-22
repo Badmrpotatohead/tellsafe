@@ -31,14 +31,35 @@ interface Props {
   orgId: string;
 }
 
+// Derive a slug suggestion from a display name
+function slugify(val: string): string {
+  return val
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 50);
+}
+
 export default function BrandingSettings({ orgId }: Props) {
   const { theme } = useBrand();
-  const { org, refreshOrg } = useAuth();
+  const { org, refreshOrg, user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const hasBranding = org ? PLAN_LIMITS[org.plan].hasCustomBranding : false;
+  const isOwner = !!user && org?.ownerId === user.uid;
 
+  // ── Identity (name + slug) ────────────────────────────────
   const [name, setName] = useState(org?.name || "");
+  const [slug, setSlug] = useState(org?.slug || "");
+  const [slugDirty, setSlugDirty] = useState(false); // true once admin manually edits slug field
+  const [identitySaving, setIdentitySaving] = useState(false);
+  const [identitySaved, setIdentitySaved] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  const [showSlugWarning, setShowSlugWarning] = useState(false);
+
+  // ── Branding (everything else) ────────────────────────────
   const [tagline, setTagline] = useState(org?.tagline || "");
   const [heroHeading, setHeroHeading] = useState(org?.heroHeading || "");
   const [primaryColor, setPrimaryColor] = useState(org?.primaryColor || "#2d6a6a");
@@ -57,6 +78,65 @@ export default function BrandingSettings({ orgId }: Props) {
   const catIconRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [hidePoweredBy, setHidePoweredBy] = useState(org?.hidePoweredBy || false);
+
+  // When name changes, auto-suggest a new slug (unless admin has manually set one)
+  const handleNameChange = (val: string) => {
+    setName(val);
+    if (!slugDirty) {
+      setSlug(slugify(val));
+    }
+  };
+
+  const handleSlugChange = (val: string) => {
+    setSlugDirty(true);
+    setSlug(val.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 50));
+  };
+
+  // Save name + slug via the dedicated API route
+  const handleIdentitySave = async () => {
+    setIdentityError(null);
+    const slugChanged = slug !== (org?.slug || "");
+
+    // If slug is changing, show confirmation warning first
+    if (slugChanged && !showSlugWarning) {
+      setShowSlugWarning(true);
+      return;
+    }
+
+    setIdentitySaving(true);
+    setShowSlugWarning(false);
+    try {
+      const token = await user?.getIdToken();
+      const body: Record<string, string> = { orgId, name };
+      if (slugChanged && isOwner) body.newSlug = slug;
+
+      const res = await fetch("/api/org/update", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setIdentityError(data.error || "Failed to save.");
+        return;
+      }
+
+      // Update local slug state if it changed
+      if (data.slug) setSlug(data.slug);
+      setSlugDirty(false);
+      await refreshOrg();
+      setIdentitySaved(true);
+      setTimeout(() => setIdentitySaved(false), 2500);
+    } catch {
+      setIdentityError("Network error. Please try again.");
+    } finally {
+      setIdentitySaving(false);
+    }
+  };
 
   const inputStyle = {
     width: "100%",
@@ -342,6 +422,172 @@ export default function BrandingSettings({ orgId }: Props) {
       {/* Live Preview */}
       {showPreview && <FormPreview />}
 
+      {/* ── Organization Identity ──────────────────────────── */}
+      <div style={{
+        marginBottom: 28,
+        padding: "20px 20px 16px",
+        border: `1.5px solid ${theme.divider}`,
+        borderRadius: 14,
+        background: theme.paper,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: theme.ink, marginBottom: 14, letterSpacing: "0.01em" }}>
+          Organization Identity
+        </div>
+
+        {/* Name */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Organization Name</label>
+          <input
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            maxLength={100}
+            placeholder="Acme Corp"
+            style={{ ...inputStyle, boxSizing: "border-box" as const }}
+          />
+          <div style={{ fontSize: 11, color: theme.muted, marginTop: 4 }}>
+            Shown on your feedback form and in email notifications.
+          </div>
+        </div>
+
+        {/* Slug — owner only */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>
+            Public URL
+            {!isOwner && (
+              <span style={{ color: theme.muted, fontWeight: 400, marginLeft: 6 }}>
+                — only the owner can change this
+              </span>
+            )}
+          </label>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            border: `1.5px solid ${theme.divider}`,
+            borderRadius: 10,
+            overflow: "hidden",
+            background: theme.paper,
+          }}>
+            <span style={{
+              padding: "10px 10px 10px 14px",
+              fontSize: 13,
+              color: theme.muted,
+              whiteSpace: "nowrap",
+              background: theme.white,
+              borderRight: `1px solid ${theme.divider}`,
+              flexShrink: 0,
+            }}>
+              tellsafe.app/
+            </span>
+            <input
+              value={slug}
+              onChange={(e) => handleSlugChange(e.target.value)}
+              disabled={!isOwner}
+              maxLength={50}
+              placeholder="your-org"
+              style={{
+                flex: 1,
+                padding: "10px 14px",
+                border: "none",
+                outline: "none",
+                fontSize: 14,
+                fontFamily: monoFont,
+                color: theme.ink,
+                background: isOwner ? theme.paper : theme.white,
+                opacity: isOwner ? 1 : 0.65,
+                boxSizing: "border-box" as const,
+              }}
+            />
+          </div>
+          {isOwner && (
+            <div style={{ fontSize: 11, color: theme.muted, marginTop: 4 }}>
+              Lowercase letters, numbers, and hyphens only. 3–50 characters.
+            </div>
+          )}
+        </div>
+
+        {/* Slug-change warning */}
+        {showSlugWarning && (
+          <div style={{
+            marginBottom: 14,
+            padding: "12px 14px",
+            borderRadius: 10,
+            background: "#fffbeb",
+            border: "1.5px solid #f59e0b",
+            fontSize: 12,
+            color: "#92400e",
+            lineHeight: 1.5,
+          }}>
+            <strong>⚠️ Heads up:</strong> Changing your URL will break any existing QR codes or shared links using the old URL (<code style={{ fontFamily: monoFont }}>tellsafe.app/{org?.slug}</code>). This cannot be undone automatically.
+            <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+              <button
+                onClick={handleIdentitySave}
+                disabled={identitySaving}
+                style={{
+                  padding: "6px 14px", borderRadius: 8,
+                  background: "#f59e0b", border: "none",
+                  color: "#fff", fontSize: 12, fontWeight: 700,
+                  cursor: identitySaving ? "not-allowed" : "pointer",
+                  fontFamily: fontStack,
+                }}
+              >
+                {identitySaving ? "Saving…" : "Yes, change URL"}
+              </button>
+              <button
+                onClick={() => { setShowSlugWarning(false); setSlug(org?.slug || ""); setSlugDirty(false); }}
+                style={{
+                  padding: "6px 14px", borderRadius: 8,
+                  background: "transparent", border: `1px solid #f59e0b`,
+                  color: "#92400e", fontSize: 12, fontWeight: 600,
+                  cursor: "pointer", fontFamily: fontStack,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Identity error */}
+        {identityError && (
+          <div style={{
+            marginBottom: 12,
+            padding: "9px 13px",
+            borderRadius: 8,
+            background: "#fef2f2",
+            border: "1.5px solid #fca5a5",
+            fontSize: 12,
+            color: "#991b1b",
+          }}>
+            {identityError}
+          </div>
+        )}
+
+        {/* Save Identity button */}
+        {!showSlugWarning && (
+          <button
+            onClick={handleIdentitySave}
+            disabled={identitySaving || (name === (org?.name || "") && slug === (org?.slug || ""))}
+            style={{
+              padding: "9px 20px",
+              background: identitySaved ? "#059669" : theme.primary,
+              color: "#fff",
+              border: "none",
+              borderRadius: 9,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: (identitySaving || (name === (org?.name || "") && slug === (org?.slug || "")))
+                ? "not-allowed"
+                : "pointer",
+              opacity: (name === (org?.name || "") && slug === (org?.slug || "") && !identitySaving) ? 0.5 : 1,
+              fontFamily: fontStack,
+              transition: "background 0.2s",
+            }}
+          >
+            {identitySaving ? "Saving…" : identitySaved ? "Saved!" : "Save Identity"}
+          </button>
+        )}
+      </div>
+
       {/* Logo Upload */}
       <div style={{ marginBottom: 28, position: "relative" }}>
         {brandingLocked && (
@@ -442,12 +688,6 @@ export default function BrandingSettings({ orgId }: Props) {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Org Name — always editable */}
-      <div style={{ marginBottom: 22 }}>
-        <label style={labelStyle}>Organization Name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
       </div>
 
       {/* Tagline — always editable */}

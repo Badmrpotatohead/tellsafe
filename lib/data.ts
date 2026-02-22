@@ -18,12 +18,9 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
-  serverTimestamp,
   increment,
-  Timestamp,
   writeBatch,
 } from "./firebase";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import type {
   Organization,
   Feedback,
@@ -34,10 +31,7 @@ import type {
   ResponseTemplate,
   OrgAdmin,
   OrgUpdate,
-  SubmitFeedbackRequest,
 } from "../types";
-
-const functions = getFunctions();
 
 // ============================================================
 // Organization Operations
@@ -172,38 +166,6 @@ export async function getMyOrganizations(): Promise<Organization[]> {
 // Feedback Operations
 // ============================================================
 
-/** Submit feedback (public, no auth required) */
-export async function submitFeedback(
-  orgId: string,
-  data: SubmitFeedbackRequest
-) {
-  const now = new Date().toISOString();
-  const feedbackData: Record<string, any> = {
-    type: data.type,
-    categories: data.categories,
-    text: data.text,
-    status: "new" as FeedbackStatus,
-    sentimentScore: null,
-    sentimentLabel: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  // Add type-specific fields
-  if (data.type === "identified") {
-    feedbackData.authorName = data.authorName || "";
-    feedbackData.authorEmail = data.authorEmail || "";
-  }
-
-  if (data.type === "relay" && data.relayEmail) {
-    // Send plaintext email temporarily — Cloud Function will encrypt and delete it
-    feedbackData.relayEmailPlaintext = data.relayEmail;
-  }
-
-  const docRef = await addDoc(collections.feedback(orgId), feedbackData);
-  return docRef.id;
-}
-
 /** Subscribe to feedback list (real-time) */
 export function subscribeFeedback(
   orgId: string,
@@ -265,7 +227,7 @@ export async function updateFeedbackCategories(
   });
 }
 
-/** Batch archive all resolved feedback for an org */
+/** Batch archive all resolved feedback for an org (respects Firestore 500-op limit) */
 export async function batchArchiveResolved(orgId: string): Promise<number> {
   const q = query(
     collections.feedback(orgId),
@@ -274,14 +236,20 @@ export async function batchArchiveResolved(orgId: string): Promise<number> {
   const snap = await getDocs(q);
   if (snap.empty) return 0;
 
-  const batch = writeBatch(db);
-  snap.docs.forEach((d) => {
-    batch.update(d.ref, {
-      status: "archived",
-      updatedAt: new Date().toISOString(),
+  // Firestore limits batches to 500 operations
+  const BATCH_SIZE = 450;
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    const chunk = docs.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+    chunk.forEach((d) => {
+      batch.update(d.ref, {
+        status: "archived",
+        updatedAt: new Date().toISOString(),
+      });
     });
-  });
-  await batch.commit();
+    await batch.commit();
+  }
   return snap.size;
 }
 
@@ -290,14 +258,19 @@ export async function deleteFeedback(orgId: string, feedbackId: string) {
   await deleteDoc(collections.feedbackDoc(orgId, feedbackId));
 }
 
-/** Batch delete multiple feedback items permanently */
+/** Batch delete multiple feedback items permanently (respects Firestore 500-op limit) */
 export async function batchDeleteFeedback(orgId: string, feedbackIds: string[]): Promise<number> {
   if (feedbackIds.length === 0) return 0;
-  const batch = writeBatch(db);
-  feedbackIds.forEach((id) => {
-    batch.delete(collections.feedbackDoc(orgId, id));
-  });
-  await batch.commit();
+
+  const BATCH_SIZE = 450;
+  for (let i = 0; i < feedbackIds.length; i += BATCH_SIZE) {
+    const chunk = feedbackIds.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+    chunk.forEach((id) => {
+      batch.delete(collections.feedbackDoc(orgId, id));
+    });
+    await batch.commit();
+  }
   return feedbackIds.length;
 }
 

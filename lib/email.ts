@@ -18,6 +18,16 @@ function getResend(): Resend {
   return _resend;
 }
 
+/** Escape user-supplied strings before inserting into HTML email templates */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 const FROM_EMAIL = "TellSafe <noreply@tellsafe.app>";
 
 // ============================================================
@@ -41,7 +51,7 @@ export async function sendRelayConfirmation(params: {
             Your message has been securely received.
           </h2>
           <p style="font-size: 15px; color: #5a5650; line-height: 1.6; margin: 0 0 16px;">
-            An organizer from <strong>${orgName}</strong> will be able to respond through
+            An organizer from <strong>${escapeHtml(orgName)}</strong> will be able to respond through
             this anonymous channel. You'll receive their reply at this email address —
             your identity stays private throughout.
           </p>
@@ -82,7 +92,7 @@ export async function sendRelayReply(params: {
     from: FROM_EMAIL,
     to: memberEmail,
     replyTo: `noreply@tellsafe.app`,
-    subject: `Re: Your anonymous feedback — ${orgName}`,
+    subject: `Re: Your anonymous feedback — ${orgName.replace(/[<>"]/g, "")}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
         <div style="background: #f8f6f1; border-radius: 16px; padding: 32px; border: 1px solid #e8e5de;">
@@ -90,10 +100,10 @@ export async function sendRelayReply(params: {
             🔀 Anonymous Relay — Thread #${threadId}
           </div>
           <h2 style="font-size: 22px; margin: 0 0 16px; color: #1a1a2e;">
-            ${adminName} from ${orgName} replied
+            ${escapeHtml(adminName)} from ${escapeHtml(orgName)} replied
           </h2>
           <div style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e8e5de; margin-bottom: 20px;">
-            <p style="font-size: 15px; color: #1a1a2e; line-height: 1.65; margin: 0; white-space: pre-wrap;">${replyText}</p>
+            <p style="font-size: 15px; color: #1a1a2e; line-height: 1.65; margin: 0; white-space: pre-wrap;">${escapeHtml(replyText)}</p>
           </div>
           <p style="font-size: 14px; color: #5a5650; line-height: 1.5; margin: 0 0 16px;">
             <strong>Want to continue the conversation?</strong> Log in to TellSafe to reply
@@ -134,7 +144,7 @@ export async function sendNewFeedbackNotification(params: {
   await getResend().emails.send({
     from: FROM_EMAIL,
     to: adminEmails,
-    subject: `New ${feedbackType} feedback — ${orgName}`,
+    subject: `New ${feedbackType} feedback — ${orgName.replace(/[<>"]/g, "")}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
         <div style="background: #f8f6f1; border-radius: 16px; padding: 32px; border: 1px solid #e8e5de;">
@@ -142,10 +152,10 @@ export async function sendNewFeedbackNotification(params: {
             New Feedback
           </div>
           <h2 style="font-size: 20px; margin: 0 0 16px; color: #1a1a2e;">
-            ${typeLabels[feedbackType] || feedbackType} · ${category}
+            ${typeLabels[feedbackType] || escapeHtml(feedbackType)} · ${escapeHtml(category)}
           </h2>
           <div style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e8e5de; margin-bottom: 20px;">
-            <p style="font-size: 14px; color: #1a1a2e; line-height: 1.6; margin: 0;">${previewText}${previewText.length >= 150 ? "..." : ""}</p>
+            <p style="font-size: 14px; color: #1a1a2e; line-height: 1.6; margin: 0;">${escapeHtml(previewText)}${previewText.length >= 150 ? "..." : ""}</p>
           </div>
           ${feedbackType === "relay" ? `
             <div style="background: rgba(107, 91, 138, 0.08); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #6b5b8a; margin-bottom: 16px;">
@@ -264,7 +274,7 @@ export async function sendWeeklyDigest(params: {
   const categoryHtml = topCategories.length > 0
     ? topCategories.map((c) => `
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-          <span style="font-size: 13px; color: #1a1a2e; font-weight: 600;">${c.name}</span>
+          <span style="font-size: 13px; color: #1a1a2e; font-weight: 600;">${escapeHtml(c.name)}</span>
           <span style="font-size: 12px; color: #8a8578;">(${c.count})</span>
         </div>
       `).join("")
@@ -273,7 +283,7 @@ export async function sendWeeklyDigest(params: {
   await getResend().emails.send({
     from: FROM_EMAIL,
     to: adminEmails,
-    subject: `Weekly Digest: ${totalNew} new submission${totalNew !== 1 ? "s" : ""} — ${orgName}`,
+    subject: `Weekly Digest: ${totalNew} new submission${totalNew !== 1 ? "s" : ""} — ${orgName.replace(/[<>"]/g, "")}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
         <div style="background: #f8f6f1; border-radius: 16px; padding: 32px; border: 1px solid #e8e5de;">
@@ -281,7 +291,7 @@ export async function sendWeeklyDigest(params: {
             📊 Weekly Feedback Digest
           </div>
           <h2 style="font-size: 22px; margin: 0 0 24px; color: #1a1a2e;">
-            ${orgName}
+            ${escapeHtml(orgName)}
           </h2>
 
           <!-- Stats grid -->

@@ -75,8 +75,12 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
   }, [orgId, threadId]);
 
   const handleStatusChange = async (newStatus: FeedbackStatus) => {
-    await updateFeedbackStatus(orgId, f.id, newStatus);
-    setStatus(newStatus);
+    try {
+      await updateFeedbackStatus(orgId, f.id, newStatus);
+      setStatus(newStatus);
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
   };
 
   const handleSendReply = async () => {
@@ -97,7 +101,7 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
       await sendAdminReply(orgId, tid, replyText.trim(), adminName);
 
       // Auto-update status to replied
-      if (status === "new" || status === "needs_reply") {
+      if (status === "new" || status === "needs_reply" || status === "reopened") {
         await updateFeedbackStatus(orgId, f.id, "replied");
         setStatus("replied");
       }
@@ -105,6 +109,7 @@ export default function FeedbackDetail({ orgId, feedback: f, onClose }: Props) {
       setReplyText("");
     } catch (err) {
       console.error("Failed to send reply:", err);
+      setLoadingThread(false);
     } finally {
       setSending(false);
     }

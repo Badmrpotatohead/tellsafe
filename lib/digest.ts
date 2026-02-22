@@ -35,7 +35,7 @@ export async function generateDigest(orgId: string, orgName: string, since: Date
   const totalNew = items.length;
   const urgent = items.filter((f) => f.sentimentLabel === "urgent").length;
   const needsReply = items.filter(
-    (f) => f.status === "needs_reply" || f.status === "new"
+    (f) => f.status === "needs_reply" || f.status === "new" || f.status === "reopened"
   ).length;
   const resolved = items.filter(
     (f) => f.status === "resolved" || f.status === "archived"

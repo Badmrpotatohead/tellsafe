@@ -516,6 +516,7 @@ function AdminPageInner() {
     : view === "inbox" ? "Inbox"
     : view === "needs_reply" ? "Needs Reply"
     : view === "resolved" ? "Resolved"
+    : view === "urgent" ? "Urgent"
     : view === "branding" ? "Branding"
     : view === "templates" ? "Templates"
     : view === "team" ? "Team"
@@ -524,6 +525,8 @@ function AdminPageInner() {
     : view === "surveys" ? "Surveys"
     : view === "survey_build" ? "Survey Builder"
     : view === "survey_results" ? "Results"
+    : view === "updates" ? "Updates"
+    : view === "integrations" ? "Integrations"
     : view === "profile" ? "Account"
     : view === "notifications" ? "Notifications"
     : view === "billing" ? "Billing"
@@ -628,7 +631,7 @@ function AdminPageInner() {
             isTrialing={org.isTrialing}
             trialEndsAt={org.trialEndsAt}
             allOrgs={allOrgs}
-            onOrgSwitch={(newOrg) => { setOrg(newOrg); setView("inbox"); }}
+            onOrgSwitch={(newOrg) => { setOrg(newOrg); closeThread(); setSelectedFeedback(null); setView("inbox"); }}
             onAddOrg={canAddOrg ? () => setNewOrgOpen(true) : undefined}
           />
           <main className="admin-main" style={{ marginLeft: 240, flex: 1 }}>
@@ -727,11 +730,11 @@ function AdminPageInner() {
                       padding: "7px 16px",
                       border: "1.5px solid rgba(26,26,46,0.10)",
                       borderRadius: 8,
-                      background: "#fff",
+                      background: "var(--admin-card, #fff)",
                       fontSize: 12,
                       fontWeight: 600,
                       cursor: "pointer",
-                      color: "#1a1a2e",
+                      color: "var(--admin-text, #1a1a2e)",
                       fontFamily: fontStack,
                     }}
                   >
@@ -1004,7 +1007,7 @@ function AdminPageInner() {
           isTrialing={org.isTrialing}
           trialEndsAt={org.trialEndsAt}
           allOrgs={allOrgs}
-          onOrgSwitch={(newOrg) => { setOrg(newOrg); setCategoryFilter(null); setView("inbox"); }}
+          onOrgSwitch={(newOrg) => { setOrg(newOrg); setCategoryFilter(null); closeThread(); setSelectedFeedback(null); setView("inbox"); }}
           onAddOrg={canAddOrg ? () => setNewOrgOpen(true) : undefined}
         />
         <main className={`admin-main${selectedFeedback ? " admin-detail-open" : ""}`} style={{ marginLeft: 240, flex: 1, minWidth: 0 }}>

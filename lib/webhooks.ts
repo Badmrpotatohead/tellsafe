@@ -134,6 +134,20 @@ export async function sendWebhookNotification(
   data: WebhookPayload
 ): Promise<boolean> {
   try {
+    // Validate URL to prevent SSRF — only allow known webhook platforms
+    try {
+      const url = new URL(webhookUrl);
+      const allowedHosts = ["hooks.slack.com", "discord.com", "discordapp.com"];
+      const isAllowed = allowedHosts.some((h) => url.hostname === h || url.hostname.endsWith(`.${h}`));
+      if (!isAllowed || url.protocol !== "https:") {
+        console.warn("Webhook URL rejected (not an allowed host):", webhookUrl);
+        return false;
+      }
+    } catch {
+      console.warn("Invalid webhook URL:", webhookUrl);
+      return false;
+    }
+
     const platform = detectPlatform(webhookUrl);
     const payload =
       platform === "slack"

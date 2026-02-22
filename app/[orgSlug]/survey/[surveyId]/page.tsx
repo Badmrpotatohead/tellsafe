@@ -43,34 +43,8 @@ export default function SurveyPage({ params }: PageProps) {
 
   const loadSurvey = async () => {
     try {
-      // First get orgId from slug
-      const { getFirestore, doc, getDoc } = await import("firebase/firestore");
-      const { getApps, getApp, initializeApp } = await import("firebase/app");
-
-      if (getApps().length === 0) {
-        initializeApp({
-          apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-          authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-          messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-          appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-        });
-      }
-
-      const db = getFirestore(getApp());
-      const slugSnap = await getDoc(doc(db, "slugs", orgSlug));
-      if (!slugSnap.exists()) {
-        setLoadError("Organization not found");
-        setLoading(false);
-        return;
-      }
-
-      const oid = (slugSnap.data() as any).orgId;
-      setOrgId(oid);
-
-      // Fetch survey via API
-      const res = await fetch(`/api/survey/${surveyId}/respond?orgId=${oid}`);
+      // Fetch survey via API — uses slug for server-side org lookup (no client-side Firestore needed)
+      const res = await fetch(`/api/survey/${surveyId}/respond?slug=${encodeURIComponent(orgSlug)}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setLoadError(data.error || "Survey not available");
@@ -81,6 +55,7 @@ export default function SurveyPage({ params }: PageProps) {
       const data = await res.json();
       setSurvey(data.survey);
       setOrg(data.org);
+      if (data.org?.id) setOrgId(data.org.id);
     } catch (err) {
       console.error("Load survey error:", err);
       setLoadError("Failed to load survey");
@@ -267,20 +242,22 @@ export default function SurveyPage({ params }: PageProps) {
             Share Feedback →
           </a>
           {/* Powered by TellSafe — survey success */}
-          <a
-            href="https://tellsafe.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "block",
-              marginTop: 24,
-              fontSize: 11,
-              color: "#8a8578",
-              textDecoration: "none",
-            }}
-          >
-            🛡️ Powered by TellSafe — Free anonymous feedback for your community
-          </a>
+          {!org?.hidePoweredBy && (
+            <a
+              href="https://tellsafe.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "block",
+                marginTop: 24,
+                fontSize: 11,
+                color: "#8a8578",
+                textDecoration: "none",
+              }}
+            >
+              🛡️ Powered by TellSafe — Free anonymous feedback for your community
+            </a>
+          )}
         </div>
       </div>
     );
@@ -365,7 +342,7 @@ export default function SurveyPage({ params }: PageProps) {
                   {q.highLabel && <span style={{ fontSize: 11, color: "#8a8578" }}>{q.highLabel}</span>}
                 </div>
                 <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                  {Array.from({ length: q.maxRating }, (_, i) => {
+                  {Array.from({ length: q.maxRating || 5 }, (_, i) => {
                     const val = i + 1;
                     const selected = Number(answers[q.id]) === val;
                     const filled = Number(answers[q.id]) >= val;
@@ -693,8 +670,12 @@ export default function SurveyPage({ params }: PageProps) {
 
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: "#aaa" }}>
-          🛡️ Powered by <a href="https://tellsafe.app" target="_blank" rel="noopener noreferrer" style={{ color: primaryColor, textDecoration: "none", fontWeight: 600 }}>TellSafe</a>
-          {" · "}
+          {!org?.hidePoweredBy && (
+            <>
+              🛡️ Powered by <a href="https://tellsafe.app" target="_blank" rel="noopener noreferrer" style={{ color: primaryColor, textDecoration: "none", fontWeight: 600 }}>TellSafe</a>
+              {" · "}
+            </>
+          )}
           <a href={`/${orgSlug}`} style={{ color: "#aaa", textDecoration: "none" }}>Share feedback instead →</a>
         </div>
       </div>

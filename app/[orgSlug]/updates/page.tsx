@@ -93,7 +93,7 @@ export default async function UpdatesPage({ params }: Props) {
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
       `}</style>
       <BrandProvider org={org}>
-        <UpdatesBoard orgSlug={org.slug} updates={updates} />
+        <UpdatesBoard orgSlug={org.slug} updates={updates} hidePoweredBy={org.hidePoweredBy} />
       </BrandProvider>
     </>
   );

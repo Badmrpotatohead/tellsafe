@@ -199,7 +199,12 @@ export default function FeedbackForm({ org, kioskMode = false, locale = "en" }: 
   const resetForm = () => {
     setSubmitted(false);
     setFeedback("");
-    // Keep name/email for returning users (pre-filled from localStorage)
+    // In kiosk mode, clear name/email to prevent PII leaks between users
+    if (kioskMode) {
+      setName("");
+      setEmail("");
+    }
+    // In normal mode, keep name/email for returning users (pre-filled from localStorage)
     setSelectedCats([]);
     setError(null);
     setKioskCountdown(null);

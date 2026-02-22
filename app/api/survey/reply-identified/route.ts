@@ -47,12 +47,16 @@ export async function POST(request: NextRequest) {
     const memberSnap = await adminDb
       .collection("organizations")
       .doc(orgId)
-      .collection("members")
+      .collection("admins")
       .doc(decoded.uid)
       .get();
 
     if (!memberSnap.exists) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      // Fallback: check if user is the org owner
+      const ownerSnap = await adminDb.collection("organizations").doc(orgId).get();
+      if (!ownerSnap.exists || ownerSnap.data()?.ownerId !== decoded.uid) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     // ── Load the survey response ───────────────────────────────
@@ -106,14 +110,18 @@ export async function POST(request: NextRequest) {
     // ── Admin's email (for Reply-To) ───────────────────────────
     const adminEmail = decoded.email || `noreply@tellsafe.app`;
 
+    // ── HTML escaping helper ─────────────────────────────────
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
     // ── Send via Resend ────────────────────────────────────────
-    const greeting = respondentName ? `Hi ${respondentName},` : "Hi,";
+    const greeting = respondentName ? `Hi ${esc(respondentName)},` : "Hi,";
 
     await getResend().emails.send({
-      from: `${orgName} via TellSafe <noreply@tellsafe.app>`,
+      from: `${orgName.replace(/[<>"]/g, "")} via TellSafe <noreply@tellsafe.app>`,
       to: respondentEmail.trim(),
       replyTo: adminEmail,
-      subject: `Re: ${surveyTitle} — ${orgName}`,
+      subject: `Re: ${surveyTitle.replace(/[<>"]/g, "")} — ${orgName.replace(/[<>"]/g, "")}`,
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
           <div style="background: #f8f6f1; border-radius: 16px; padding: 32px; border: 1px solid #e8e5de;">
@@ -122,11 +130,11 @@ export async function POST(request: NextRequest) {
               ${greeting}
             </p>
             <p style="font-size: 13px; color: #8a8578; margin: 0 0 20px;">
-              A message from <strong>${orgName}</strong> regarding your survey response:
+              A message from <strong>${esc(orgName)}</strong> regarding your survey response:
             </p>
 
             <div style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e8e5de; margin-bottom: 20px;">
-              <p style="font-size: 15px; color: #1a1a2e; line-height: 1.65; margin: 0; white-space: pre-wrap;">${message.trim()}</p>
+              <p style="font-size: 15px; color: #1a1a2e; line-height: 1.65; margin: 0; white-space: pre-wrap;">${esc(message.trim())}</p>
             </div>
 
             <p style="font-size: 13px; color: #5a5650; line-height: 1.5; margin: 0;">
@@ -136,7 +144,7 @@ export async function POST(request: NextRequest) {
 
           <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: 20px;">
             You're receiving this because you submitted identified feedback to
-            <strong>${orgName}</strong> via
+            <strong>${esc(orgName)}</strong> via
             <a href="https://tellsafe.app" style="color: #2d6a6a;">TellSafe</a>.
           </p>
         </div>
