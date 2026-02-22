@@ -147,7 +147,7 @@ export default function ProfileSettings() {
   };
 
   return (
-    <div style={{ maxWidth: 480, fontFamily: fontStack }}>
+    <div style={{ maxWidth: 480, fontFamily: fontStack, boxSizing: "border-box", width: "100%" }}>
       <h2
         style={{
           fontFamily: displayFont,
@@ -178,6 +178,9 @@ export default function ProfileSettings() {
           padding: 24,
           boxShadow: "var(--admin-shadow, 0 4px 20px rgba(26,26,46,0.07))",
           marginBottom: 24,
+          boxSizing: "border-box",
+          width: "100%",
+          overflow: "hidden",
         }}
       >
         <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--admin-text-muted, #8a8578)", marginBottom: 16 }}>
@@ -246,6 +249,9 @@ export default function ProfileSettings() {
           padding: 24,
           boxShadow: "var(--admin-shadow, 0 4px 20px rgba(26,26,46,0.07))",
           marginBottom: 24,
+          boxSizing: "border-box",
+          width: "100%",
+          overflow: "hidden",
         }}
       >
         <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--admin-text-muted, #8a8578)", marginBottom: 16 }}>
