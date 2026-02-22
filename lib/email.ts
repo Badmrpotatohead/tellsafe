@@ -87,11 +87,12 @@ export async function sendRelayReply(params: {
   replyText: string;
 }) {
   const { memberEmail, orgName, threadId, adminName, replyText } = params;
+  const relayReplyAddress = `relay+${threadId}@tellsafe.app`;
 
   await getResend().emails.send({
     from: FROM_EMAIL,
     to: memberEmail,
-    replyTo: `noreply@tellsafe.app`,
+    replyTo: relayReplyAddress,
     subject: `Re: Your anonymous feedback — ${orgName.replace(/[<>"]/g, "")}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
@@ -106,11 +107,11 @@ export async function sendRelayReply(params: {
             <p style="font-size: 15px; color: #1a1a2e; line-height: 1.65; margin: 0; white-space: pre-wrap;">${escapeHtml(replyText)}</p>
           </div>
           <p style="font-size: 14px; color: #5a5650; line-height: 1.5; margin: 0 0 16px;">
-            <strong>Want to continue the conversation?</strong> Log in to TellSafe to reply
+            <strong>Want to continue the conversation?</strong> Simply reply to this email
             — your identity stays protected throughout.
           </p>
           <div style="background: rgba(107, 91, 138, 0.08); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #6b5b8a; line-height: 1.5;">
-            🔒 Your identity remains protected throughout this conversation.
+            🔒 Your identity remains protected. Replies are routed anonymously through TellSafe's encrypted relay.
           </div>
         </div>
         <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: 20px;">
