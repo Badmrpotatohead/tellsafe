@@ -122,6 +122,7 @@ export default function ProfileSettings() {
     background: "var(--admin-input-bg, #f8f6f1)",
     outline: "none",
     fontFamily: fontStack,
+    boxSizing: "border-box",
   };
 
   const labelStyle: React.CSSProperties = {
@@ -253,7 +254,7 @@ export default function ProfileSettings() {
 
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Current Password</label>
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative", width: "100%" }}>
             <input
               type={showCurrentPw ? "text" : "password"}
               value={currentPassword}
@@ -269,7 +270,7 @@ export default function ProfileSettings() {
 
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>New Password</label>
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative", width: "100%" }}>
             <input
               type={showNewPw ? "text" : "password"}
               value={newPassword}
