@@ -158,6 +158,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Send email to member ───────────────────────────────────
+    let emailWarning: string | null = null;
     if (encryptedEmail) {
       try {
         const memberEmail = decryptEmail(encryptedEmail);
@@ -170,15 +171,19 @@ export async function POST(request: NextRequest) {
           replyText: text.trim(),
         });
         console.log(`[relay/reply] Email sent successfully for thread ${threadId}`);
-      } catch (emailErr) {
-        // Non-fatal: message is already saved to Firestore
-        console.error("[relay/reply] Failed to send email:", emailErr);
+      } catch (emailErr: any) {
+        // Non-fatal: message is already saved to Firestore, but surface the
+        // error in the response so it shows up in the browser network tab.
+        const msg = emailErr?.message || String(emailErr);
+        console.error("[relay/reply] Failed to send email:", msg);
+        emailWarning = `Email delivery failed: ${msg}`;
       }
     } else {
-      console.warn(`[relay/reply] No encrypted email found for thread ${threadId} — member will not receive email notification`);
+      emailWarning = `No encrypted email found for thread ${threadId} — check Firestore thread document.`;
+      console.warn(`[relay/reply] ${emailWarning}`);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, ...(emailWarning ? { emailWarning } : {}) });
   } catch (err) {
     console.error("Relay reply error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
