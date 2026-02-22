@@ -108,36 +108,42 @@ export async function POST(request: NextRequest) {
     let encryptedEmail: string | null = null;
 
     if (threadData?.source === "survey" && threadData?.surveyId) {
-      // Survey relay: find the response that has this threadId
-      const responsesSnap = await adminDb
-        .collection("organizations")
-        .doc(orgId)
-        .collection("surveys")
-        .doc(threadData.surveyId)
-        .collection("responses")
-        .where("threadId", "==", threadId)
-        .limit(1)
-        .get();
-
-      if (!responsesSnap.empty) {
-        encryptedEmail = responsesSnap.docs[0].data().encryptedEmail || null;
-      } else if (threadData.responseId) {
-        // Fallback: direct doc lookup via responseId written at submission time
-        console.warn(`[relay/reply] threadId query returned empty for thread ${threadId} — trying responseId fallback`);
-        const responseSnap = await adminDb
+      // Fast path: encrypted email stored directly on the thread doc (new threads)
+      if (threadData.encryptedEmail) {
+        encryptedEmail = threadData.encryptedEmail;
+      } else {
+        // Legacy fallback: query the survey response subcollection by threadId
+        console.warn(`[relay/reply] Thread ${threadId} has no encryptedEmail field — falling back to subcollection query`);
+        const responsesSnap = await adminDb
           .collection("organizations")
           .doc(orgId)
           .collection("surveys")
           .doc(threadData.surveyId)
           .collection("responses")
-          .doc(threadData.responseId)
+          .where("threadId", "==", threadId)
+          .limit(1)
           .get();
-        encryptedEmail = responseSnap.data()?.encryptedEmail || null;
-        if (!encryptedEmail) {
-          console.warn(`[relay/reply] Fallback also found no encryptedEmail for responseId ${threadData.responseId}`);
+
+        if (!responsesSnap.empty) {
+          encryptedEmail = responsesSnap.docs[0].data().encryptedEmail || null;
+        } else if (threadData.responseId) {
+          // Second fallback: direct doc lookup via stored responseId
+          console.warn(`[relay/reply] Subcollection query empty — trying responseId direct lookup`);
+          const responseSnap = await adminDb
+            .collection("organizations")
+            .doc(orgId)
+            .collection("surveys")
+            .doc(threadData.surveyId)
+            .collection("responses")
+            .doc(threadData.responseId)
+            .get();
+          encryptedEmail = responseSnap.data()?.encryptedEmail || null;
+          if (!encryptedEmail) {
+            console.warn(`[relay/reply] All lookups exhausted — no encryptedEmail for thread ${threadId}`);
+          }
+        } else {
+          console.warn(`[relay/reply] No encryptedEmail, no threadId match, no responseId on thread ${threadId}`);
         }
-      } else {
-        console.warn(`[relay/reply] No threadId query match and no responseId on thread ${threadId}`);
       }
     } else if (threadData?.feedbackId) {
       // Regular feedback relay thread

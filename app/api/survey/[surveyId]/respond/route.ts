@@ -199,11 +199,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (responseType === "relay") {
       // Encrypt email — never store plaintext
-      responseData.encryptedEmail = encryptEmail(relayEmail.trim());
-
       // Create a relay thread so admin can reply
       const orgSnap = await adminDb.collection("organizations").doc(orgId).get();
       const orgData = orgSnap.data();
+      const encryptedEmailValue = encryptEmail(relayEmail.trim());
+      responseData.encryptedEmail = encryptedEmailValue;
       const threadRef = await adminDb
         .collection("organizations")
         .doc(orgId)
@@ -217,6 +217,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
           messageCount: 0,
           lastMessageAt: now,
           createdAt: now,
+          // Store encrypted email directly on the thread so the relay reply
+          // route can look it up with a single doc read (no cross-collection query).
+          encryptedEmail: encryptedEmailValue,
         });
       responseData.threadId = threadRef.id;
 
