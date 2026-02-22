@@ -10,6 +10,7 @@
 // the Firestore thread.
 
 import { NextRequest, NextResponse } from "next/server";
+import { Resend } from "resend";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     console.log("[inbound] Received webhook type:", body?.type);
+    console.log("[inbound] Full payload:", JSON.stringify(body?.data));
 
     // Only handle email.received events
     if (body?.type !== "email.received") {
@@ -57,34 +59,37 @@ export async function POST(request: NextRequest) {
 
     console.log(`[inbound] Processing reply for thread ${threadId}`);
 
-    // Fetch the full email body from Resend API
+    // Fetch the full email body via Resend SDK
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
       throw new Error("RESEND_API_KEY is not set");
     }
 
-    const emailRes = await fetch(`https://api.resend.com/emails/${emailId}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
+    const resend = new Resend(apiKey);
+    const { data: emailData, error: resendError } = await resend.emails.receiving.get(emailId);
 
-    if (!emailRes.ok) {
-      const errText = await emailRes.text();
-      console.error(`[inbound] Failed to fetch email ${emailId}:`, errText);
+    if (resendError || !emailData) {
+      console.error(`[inbound] Failed to fetch email ${emailId}:`, JSON.stringify(resendError));
       return NextResponse.json(
-        { error: "Failed to fetch email from Resend" },
+        { error: "Failed to fetch email from Resend", detail: resendError },
         { status: 500 }
       );
     }
 
-    const emailData = await emailRes.json();
-    const rawText: string = emailData?.text ?? "";
-    const rawHtml: string = emailData?.html ?? "";
+    const rawText: string = (emailData as any)?.text ?? "";
+    const rawHtml: string = (emailData as any)?.html ?? "";
+
+    console.log(`[inbound] rawText (first 500 chars): ${rawText.slice(0, 500)}`);
+    console.log(`[inbound] rawHtml length: ${rawHtml.length}`);
 
     // Clean the reply — strip quoted content
-    const cleanText = stripEmailQuotes(rawText || htmlToPlainText(rawHtml));
+    const sourceText = rawText || htmlToPlainText(rawHtml);
+    const cleanText = stripEmailQuotes(sourceText);
+
+    console.log(`[inbound] cleanText (first 300 chars): ${cleanText.slice(0, 300)}`);
 
     if (!cleanText.trim()) {
-      console.log("[inbound] Empty reply after stripping quotes, ignoring.");
+      console.log("[inbound] Empty reply after stripping quotes — sourceText was:", sourceText.slice(0, 200));
       return NextResponse.json({ status: "ignored", reason: "empty_reply" });
     }
 
@@ -164,26 +169,68 @@ export async function POST(request: NextRequest) {
  * Strip quoted email replies.
  * Most email clients add "On [date], [person] wrote:" before the quoted text.
  * We want only the new content the member typed.
+ *
+ * Strategy:
+ * 1. Skip any leading RFC-style headers (To:/From:/Subject:) that appear before
+ *    a blank line — these are raw email headers, not the message body.
+ * 2. Then scan for quote markers and stop at the first one found.
  */
 function stripEmailQuotes(text: string): string {
   if (!text) return "";
 
   const lines = text.split("\n");
-  const cleanLines: string[] = [];
+  let startIndex = 0;
 
-  for (const line of lines) {
+  // Step 1: If the text starts with RFC email headers (To:/From:/Subject:/Date:
+  // at the very top before a blank line), skip past them.
+  const headerPattern = /^(To|From|Subject|Date|Cc|Bcc|Message-ID|Content-Type|MIME-Version|Delivered-To|Reply-To):/i;
+  let inHeaderBlock = true;
+  for (let i = 0; i < lines.length; i++) {
+    if (inHeaderBlock) {
+      if (lines[i].trim() === "") {
+        // Blank line ends the header block — message body starts after this
+        startIndex = i + 1;
+        break;
+      } else if (!headerPattern.test(lines[i]) && !lines[i].match(/^\s+/)) {
+        // Non-header line before a blank line — not a header block, start from 0
+        inHeaderBlock = false;
+        startIndex = 0;
+        break;
+      }
+    }
+  }
+
+  // Step 2: Collect lines until we hit a quote marker
+  const cleanLines: string[] = [];
+  let seenContent = false; // track if we've seen non-empty content yet
+
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Quote markers — stop here
     if (
-      line.match(/^On .+ wrote:$/i) ||
-      line.match(/^>/) ||
-      line.match(/^-{3,}/) ||
-      line.match(/^_{3,}/) ||
-      line.match(/^From:/i) ||
-      line.match(/^Sent:/i) ||
-      line.match(/^To:/i) ||
-      line.match(/^Subject:/i)
+      // "On Mon, Jan 1, 2024, Person <email> wrote:" (may span multiple lines)
+      // Match start of the pattern: "On " followed by date-like content
+      trimmed.match(/^On .{5,}wrote:$/i) ||
+      trimmed.match(/^On .{5,}wrote:\s*$/i) ||
+      // Outlook-style "From: Person" after content
+      (seenContent && trimmed.match(/^From:/i)) ||
+      (seenContent && trimmed.match(/^Sent:/i)) ||
+      (seenContent && trimmed.match(/^To:/i)) ||
+      (seenContent && trimmed.match(/^Subject:/i)) ||
+      // Quoted text ("> text")
+      trimmed.match(/^>/) ||
+      // Horizontal rules used by email clients
+      trimmed.match(/^-{3,}/) ||
+      trimmed.match(/^_{3,}/) ||
+      // Gmail-style "---------- Forwarded message ---------"
+      trimmed.match(/^-{5,}\s*(Forwarded|Original)/i)
     ) {
       break;
     }
+
+    if (trimmed !== "") seenContent = true;
     cleanLines.push(line);
   }
 
