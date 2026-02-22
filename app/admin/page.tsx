@@ -4,7 +4,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
 import { BrandProvider } from "../../components/BrandProvider";
@@ -596,16 +596,16 @@ function AdminPageInner() {
     }
   };
 
-  const openThread = useCallback((tid: string, fid: string, origin?: "inbox" | "survey_results", originSurvey?: any) => {
+  const openThread = (tid: string, fid: string, origin?: "inbox" | "survey_results", originSurvey?: any) => {
     setThreadId(tid);
     setThreadFeedbackId(fid);
     setSelectedFeedback(null);
     setThreadOrigin(origin || "inbox");
     setThreadOriginSurvey(originSurvey || null);
     // Note: do NOT call setView here — the thread view is an early-return
-    // guard on threadId, not a view switch. Calling setView("inbox") was
-    // causing the survey_results view to briefly flash and clearing survey state.
-  }, []);
+    // guard on threadId, not a view switch. Calling setView("inbox") previously
+    // was causing threadOrigin to reset, making backLabel always show "Inbox".
+  };
 
   const closeThread = () => {
     setThreadId(null);
